@@ -10,10 +10,10 @@ clebschgordan(j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) = clebschgordan(Fl
 function clebschgordan(T::Type{<:AbstractFloat}, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂)
     s = wigner3j(T, j₁, j₂, j₃, m₁, m₂, -m₃)
     iszero(s) && return s
-    if isodd(j₁ - j₂ + m₃)
+    if isodd(convert(Int,j₁ - j₂ + m₃))
         s *= -one(s)
     end
-    s /= sqrt(convert(T, j₃+j₃+1))
+    s *= sqrt(convert(T, j₃+j₃+one(j₃)))
     return s
 end
 
@@ -34,8 +34,8 @@ function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ =
     β₂ = convert(Int, j₁ - m₁ )
     β₃ = convert(Int, j₂ + m₂ )
 
-    # extra sign in definition
-    sgn = isodd(j₁ - j₃ - m₃) ? -sgn : sgn
+    # extra sign in definition: α₁ - α₂ = j₁ + m₂ - j₂ + m₁ = j₁ - j₂ + m₃
+    sgn = isodd(α₁ - α₂) ? -sgn : sgn
 
     # dictionary lookup or compute
     if haskey(Wigner3j, (β₁, β₂, β₃, α₁, α₂))
@@ -44,7 +44,8 @@ function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ =
         s1 = Δ²(j₁, j₂, j₃)
         s2 = prod(map(primefactorial, (β₂, β₁ - α₁, β₁ - α₂, β₃, β₃ - α₁, β₂ - α₂)))
 
-        snum, rnum = splitsquare(s1.num * s2)
+
+        snum, rnum = splitsquare(s1.num*s2)
         sden, rden = splitsquare(s1.den)
         s = convert(BigInt, snum) // convert(BigInt, sden)
         r = convert(BigInt, rnum) // convert(BigInt, rden)
@@ -118,6 +119,7 @@ function δ(j₁, j₂, j₃)
 end
 
 # triangle coefficient
+Δ(j₁, j₂, j₃) = Δ(Float64, j₁, j₂, j₃)
 function Δ(T::Type{<:AbstractFloat}, j₁, j₂, j₃)
     if !δ(j₁, j₂, j₃)
         throw(DomainError())
@@ -139,7 +141,7 @@ end
 
 # reorder parameters determining the 3j symbol to canonical order:
 # j₁ >= j₂ >= j₃ and m₁ >= 0 or m₁ == 0 && m₂ >= 0
-function reorder3j(j₁, j₂, j₃, m₁, m₂, m₃, sign = one(UInt8))
+function reorder3j(j₁, j₂, j₃, m₁, m₂, m₃, sign = one(Int8))
     if j₁ < j₂
         return reorder3j(j₂, j₁, j₃, m₂, m₁, m₃, -sign)
     elseif j₂ < j₃
@@ -150,7 +152,7 @@ function reorder3j(j₁, j₂, j₃, m₁, m₂, m₃, sign = one(UInt8))
         return reorder3j(j₁, j₂, j₃, -m₁, -m₂, -m₃, -sign)
     else
         # sign doesn't matter if total J=j₁ + j₂ + j₃ is even
-        if iseven(j₁ + j₂ + j₃)
+        if iseven(convert(UInt,j₁ + j₂ + j₃))
             sign = one(sign)
         end
         return (j₁, j₂, j₃, m₁, m₂, m₃, sign)
@@ -183,14 +185,14 @@ function compute3jseries(β₁, β₂, β₃, α₁, α₂)
     nums = Vector{T}(length(krange))
     dens = Vector{T}(length(krange))
     for (i, k) in enumerate(krange)
-        num = iseven(k) ? primefactorial(1) : -primefactorial(1)
+        num = iseven(k) ? one(T) : -one(T)
         den = primefactorial(k)*primefactorial(k-α₁)*primefactorial(k-α₂)*
             primefactorial(β₁-k)*primefactorial(β₂-k)*primefactorial(β₃-k)
         nums[i], dens[i] = divgcd!(num, den)
     end
     den = commondenominator!(nums, dens)
     totalnum = sumlist!(nums)
-    totalden = convert(BigInt, PrimeFactorization(den))
+    totalden = convert(BigInt, den)
     return totalnum//totalden
 end
 
@@ -209,7 +211,7 @@ function compute6jseries(β₁, β₂, β₃, α₁, α₂, α₃, α₄)
     end
     den = commondenominator!(nums, dens)
     totalnum = sumlist!(nums)
-    totalden = convert(BigInt, PrimeFactorization(den))
+    totalden = convert(BigInt, den)
     return totalnum//totalden
 end
 

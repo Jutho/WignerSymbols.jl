@@ -56,12 +56,9 @@ struct PrimeFactorization{T<:Unsigned} <: Integer
 end
 PrimeFactorization(powers::Vector{T}) where {T<:Unsigned} = PrimeFactorization{T}(powers, one(Int8))
 
-Base.copy(a::PrimeFactorization) = PrimeFactorization(copy(a.powers), a.sign)
-Base.:(==)(a::P, b::P) where {P<:PrimeFactorization} = a.powers == b.powers && a.sign == b.sign
-
 # define our own factor function, returning an instance of PrimeFactorization
 function primefactor(n::Integer)
-    iszero(n) && return PrimeFactorization(UInt8[], zero(UInt8))
+    iszero(n) && return PrimeFactorization(UInt8[], zero(Int8))
     sn = n < 0 ? -one(Int8) : one(Int8)
     n = abs(n)
     m = length(factortable)
@@ -104,7 +101,16 @@ function primefactorial(n::Integer)
     @inbounds return PrimeFactorization(copy(factorialtable[n+1]))
 end
 
-# Conversion from PrimeFactorization to `BigInt` using `bigprime`
+# Methods for PrimeFactorization:
+Base.copy(a::PrimeFactorization) = PrimeFactorization(copy(a.powers), a.sign)
+
+Base.one(::Type{PrimeFactorization{T}}) where {T<:Unsigned} = PrimeFactorization(Vector{T}())
+Base.zero(::Type{PrimeFactorization{T}}) where {T<:Unsigned} = PrimeFactorization(Vector{T}(), zero(Int8))
+
+Base.promote_rule(P::Type{<:PrimeFactorization},::Type{<:Integer}) = P
+Base.promote_rule(P::Type{<:PrimeFactorization},::Type{BigInt}) = BigInt
+
+Base.convert(P::Type{<:PrimeFactorization}, n::Integer) = convert(P, primefactor(n))
 function Base.convert(::Type{BigInt}, a::PrimeFactorization)
     A = big(a.sign)
     for (n, e) in enumerate(a.powers)
@@ -113,6 +119,24 @@ function Base.convert(::Type{BigInt}, a::PrimeFactorization)
         end
     end
     return A
+end
+Base.convert(::Type{PrimeFactorization{T}}, a::PrimeFactorization{T}) where {T<:Unsigned} = a
+Base.convert(::Type{PrimeFactorization{T1}}, a::PrimeFactorization{T2}) where {T1<:Unsigned, T2<:Unsigned} = PrimeFactorization(map(T1, a.powers), a.sign)
+
+Base.:(==)(a::PrimeFactorization, b::PrimeFactorization) = a.powers == b.powers && a.sign == b.sign
+function Base.:<(a::PrimeFactorization, b::PrimeFactorization)
+    if a.sign != b.sign
+        return a.sign < b.sign
+    elseif a.sign < 0
+        return <(-b, -a)
+    else
+        ag, bg = divgcd(a, b)
+        if length(ag.powers) <= length(bg.powers) && all(k->ag.powers[k]<bg.powers[k], 1:length(ag.powers))
+            return true
+        else
+            return convert(BigInt, ag) < convert(BigInt, bg)
+        end
+    end
 end
 
 # Methods for PrimeFactorization: only fast multiplication, and lcm and gcd.
@@ -181,15 +205,15 @@ end
 # given a list of numerators and denominators, compute the common denominator and
 # the rescaled numerator after putting all fractions at the same common denominator
 function commondenominator!(nums::Vector{P}, dens::Vector{P}) where {P<:PrimeFactorization}
+    isempty(nums) && return one(P)
     # accumulate lcm of denominator
-    den = copy(dens[1])
+    den = PrimeFactorization(copy(dens[1].powers))
     for i = 2:length(dens)
         _vmax!(den.powers, dens[i].powers)
     end
     # rescale numerators
     for i = 1:length(nums)
-        powers = _vsub!(_vadd!(nums[i].powers, den.powers), dens[i].powers)
-        nums[i] = PrimeFactorization(powers, nums[i].sign)
+        _vsub!(_vadd!(nums[i].powers, den.powers), dens[i].powers)
     end
     return den
 end

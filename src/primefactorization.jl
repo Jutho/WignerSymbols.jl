@@ -57,6 +57,7 @@ end
 PrimeFactorization(powers::Vector{T}) where {T<:Unsigned} = PrimeFactorization{T}(powers, one(Int8))
 
 Base.copy(a::PrimeFactorization) = PrimeFactorization(copy(a.powers), a.sign)
+Base.:(==)(a::P, b::P) where {P<:PrimeFactorization} = a.powers == b.powers && a.sign == b.sign
 
 # define our own factor function, returning an instance of PrimeFactorization
 function primefactor(n::Integer)
@@ -81,11 +82,11 @@ function primefactor(n::Integer)
         end
         push!(factortable, powers)
     end
-    @inbounds return PrimeFactorization(factortable[n], sn)
+    @inbounds return PrimeFactorization(copy(factortable[n]), sn)
 end
 
 function primefactorial(n::Integer)
-    n < 0 && return DomainError(n)
+    n < 0 && throw(DomainError(n))
     m = length(factorialtable)-1
     @inbounds while m < n
         prevfactorial = factorialtable[m+1]
@@ -100,7 +101,7 @@ function primefactorial(n::Integer)
         end
         push!(factorialtable, powers)
     end
-    @inbounds return PrimeFactorization(factorialtable[n+1])
+    @inbounds return PrimeFactorization(copy(factorialtable[n+1]))
 end
 
 # Conversion from PrimeFactorization to `BigInt` using `bigprime`
@@ -134,7 +135,7 @@ function Base.gcd(a::PrimeFactorization{T}, b::PrimeFactorization{T}) where {T}
     elseif b.sign ==0
         return a
     else
-        return Primefactorization(_vmin!(copy(a.powers), b.powers))
+        return PrimeFactorization(_vmin!(copy(a.powers), b.powers))
     end
 end
 function Base.lcm(a::PrimeFactorization{T}, b::PrimeFactorization{T}) where {T}
@@ -143,33 +144,37 @@ function Base.lcm(a::PrimeFactorization{T}, b::PrimeFactorization{T}) where {T}
     elseif b.sign ==0
         return b
     else
-        return Primefactorization(_vmax!(copy(a.powers), b.powers))
+        return PrimeFactorization(_vmax!(copy(a.powers), b.powers))
     end
 end
-function Base.divgcd(a::PrimeFactorization{T}, b::PrimeFactorization{T}) where {T}
+Base.divgcd(a::PrimeFactorization{T}, b::PrimeFactorization{T}) where {T} = divgcd!(copy(a), copy(b))
+function divgcd!(a::PrimeFactorization{T}, b::PrimeFactorization{T}) where {T}
     af, bf = a.powers, b.powers
-
-    ag = copy(af)
-    bg = copy(bf)
-    for k = 1:min(length(ag), length(bg))
-        gk = min(ag[k], bg[k])
-        ag[k] -= gk
-        bg[k] -= gk
+    for k = 1:min(length(af), length(bf))
+        gk = min(af[k], bf[k])
+        af[k] -= gk
+        bf[k] -= gk
     end
-    while length(ag) > 0 && iszero(last(ag))
-        pop!(ag)
+    while length(af) > 0 && iszero(last(af))
+        pop!(af)
     end
-    while length(bg) > 0 && iszero(last(bg))
-        pop!(bg)
+    while length(bf) > 0 && iszero(last(bf))
+        pop!(bf)
     end
-    return PrimeFactorization{T}(ag, a.sign), PrimeFactorization{T}(bg, b.sign)
+    return a, b
 end
 
 # split `a::PrimeFactorization` into a square `s` and a remainder `r`, such that
 # `a = s^2 * r` and the powers in the prime factorization of `r` are zero or one
 function splitsquare(a::PrimeFactorization)
     r = PrimeFactorization(map(p->convert(UInt8, isodd(p)), a.powers), a.sign)
+    while length(r.powers) > 0 && iszero(last(r.powers))
+        pop!(r.powers)
+    end
     s = PrimeFactorization(map(p->(p>>1), a.powers))
+    while length(s.powers) > 0 && iszero(last(s.powers))
+        pop!(s.powers)
+    end
     return s, r
 end
 
@@ -191,8 +196,8 @@ end
 
 # auxiliary function to compute sums of a list of PrimeFactorizations as quickly as possible
 function sumlist!(list::Vector{<:PrimeFactorization}, ind = 1:length(list))
-    # depending on length, sum smaller parts first
-    g = copy(list[ind[1]])
+    # first compute gcd to take out common factors
+    g = PrimeFactorization(copy(list[ind[1]].powers))
     for k in ind
         _vmin!(g.powers, list[k].powers)
     end
@@ -204,8 +209,7 @@ function sumlist!(list::Vector{<:PrimeFactorization}, ind = 1:length(list))
         l = L >> 1
         s = sumlist!(list, first(ind)+(0:l-1)) + sumlist!(list, first(ind)+(l:L-1))
     else
-        # first compute gcd to take out common factors
-
+        # do sum
         s = big(0)
         for k in ind
             Base.GMP.MPZ.add!(s, convert(BigInt, list[k]))

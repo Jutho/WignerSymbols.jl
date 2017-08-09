@@ -1,9 +1,9 @@
 module WignerSymbols
-export wigner3j, wigner6j
+export δ, Δ, clebschgordan, wigner3j, wigner6j
 
 include("primefactorization.jl")
 
-const Wigner3j = Dict{NTuple{5,UInt},Tuple{Rational{BigInt},Rational{BigInt}}}()
+const Wigner3j = Dict{Tuple{UInt,UInt,UInt,Int,Int},Tuple{Rational{BigInt},Rational{BigInt}}}()
 const Wigner6j = Dict{NTuple{6,UInt},Tuple{Rational{BigInt},Rational{BigInt}}}()
 
 clebschgordan(j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) = clebschgordan(Float64, j₁, m₁, j₂, m₂, j₃, m₃)
@@ -21,19 +21,35 @@ wigner3j(j₁, j₂, j₃, m₁, m₂, m₃ = -m₂-m₃) = wigner3j(Float64, j�
 function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₂-m₃)
     # check angular momenta and triangle condition
     if !(δ(j₁, j₂, j₃) && ϵ(j₁, m₁) && ϵ(j₂, m₂) && ϵ(j₃, m₃))
-        throw(DomainError())
+        throw(DomainError((j₁, j₂, j₃, m₁, m₂, m₃)))
     end
     iszero(m₁+m₂+m₃) || return zero(T)
 
     # we reorder such that j₁ >= j₂ >= j₃ and m₁ >= 0 or m₁ == 0 && m₂ >= 0
     j₁, j₂, j₃, m₁, m₂, m₃, sgn = reorder3j(j₁, j₂, j₃, m₁, m₂, m₃)
+    # do we also want to use Regge symmetries?
+    α₁ = convert(Int, j₂ - m₁ - j₃ ) # can be negative
+    α₂ = convert(Int, j₁ + m₂ - j₃ ) # can be negative
+    β₁ = convert(Int, j₁ + j₂ - j₃ )
+    β₂ = convert(Int, j₁ - m₁ )
+    β₃ = convert(Int, j₂ + m₂ )
+
+    # extra sign in definition
+    sgn = isodd(j₁ - j₃ - m₃) ? -sgn : sgn
 
     # dictionary lookup or compute
-    if haskey(Wigner3j, (j₁, j₂, j₃, m₁, m₂))
-        r, s = Wigner3j[(j₁, j₂, j₃, m₁, m₂)]
+    if haskey(Wigner3j, (β₁, β₂, β₃, α₁, α₂))
+        r, s = Wigner3j[(β₁, β₂, β₃, α₁, α₂)]
     else
-        r, s = compute3j(j₁, j₂, j₃, m₁, m₂)
-        Wigner3j[(j₁, j₂, j₃, m₁, m₂)] = (r,s)
+        s1 = Δ²(j₁, j₂, j₃)
+        s2 = prod(map(primefactorial, (β₂, β₁ - α₁, β₁ - α₂, β₃, β₃ - α₁, β₂ - α₂)))
+
+        snum, rnum = splitsquare(s1.num * s2)
+        sden, rden = splitsquare(s1.den)
+        s = convert(BigInt, snum) // convert(BigInt, sden)
+        r = convert(BigInt, rnum) // convert(BigInt, rden)
+        s *= compute3jseries(β₁, β₂, β₃, α₁, α₂)
+        Wigner3j[(β₁, β₂, β₃, α₁, α₂)] = (r,s)
     end
 
     return sgn*sqrt(convert(T, r))*convert(T, s)
@@ -48,7 +64,8 @@ function wigner6j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, j₄, j₅, j₆)
 
     # check triangle conditions
     if !(δ(α̂₁...) && δ(α̂₂...) && δ(α̂₃...) && δ(α̂₄...))
-        throw(DomainError())
+        return zero(T)
+        # throw(DomainError())
     end
     # reduce
     α₁ = convert(UInt, +(α̂₁...))
@@ -100,6 +117,15 @@ function δ(j₁, j₂, j₃)
     return true
 end
 
+# triangle coefficient
+function Δ(T::Type{<:AbstractFloat}, j₁, j₂, j₃)
+    if !δ(j₁, j₂, j₃)
+        throw(DomainError())
+    end
+    v = Δ²(j₁, j₂, j₃)
+    return sqrt(convert(T, convert(BigInt, v.num) // convert(BigInt, v.den)))
+end
+
 # squared triangle coefficient
 function Δ²(j₁, j₂, j₃)
     # also checks the triangle conditions by converting to unsigned integer:
@@ -113,11 +139,11 @@ end
 
 # reorder parameters determining the 3j symbol to canonical order:
 # j₁ >= j₂ >= j₃ and m₁ >= 0 or m₁ == 0 && m₂ >= 0
-function reorder3j(j₁, j₂, j₃, m₁, m₂, m₃, sgn = one(UInt8))
+function reorder3j(j₁, j₂, j₃, m₁, m₂, m₃, sign = one(UInt8))
     if j₁ < j₂
-        return reorder3j(j₂, j₁, j₃, m₁, m₂, m₃, -sign)
+        return reorder3j(j₂, j₁, j₃, m₂, m₁, m₃, -sign)
     elseif j₂ < j₃
-        return reorder3j(j₁, j₃, j₂, m₁, m₂, m₃, -sign)
+        return reorder3j(j₁, j₃, j₂, m₁, m₃, m₂, -sign)
     elseif m₁ < zero(m₁)
         return reorder3j(j₁, j₂, j₃, -m₁, -m₂, -m₃, -sign)
     elseif iszero(m₁) && m₂ < zero(m₂)
@@ -149,37 +175,42 @@ function reorder6j(β₁, β₂, β₃, α₁, α₂, α₃, α₄)
     end
 end
 
-function compute3j(j₁, j₂, j₃, m₁, m₂)
-    m₃ = -m₁ - m₂
+# compute the sum appearing in the 3j symbol
+function compute3jseries(β₁, β₂, β₃, α₁, α₂)
+    krange = max(α₁, α₂, zero(α₁)):min(β₁, β₂, β₃)
+    T = PrimeFactorization{eltype(eltype(factorialtable))}
 
-    α₁ = convert(UInt, j₂ - m₁ - j₃ )
-    α₂ = convert(UInt, j₁ + m₂ - j₃ )
-    β₁ = convert(UInt, j₁ + j₂ - j₃ )
-    β₂ = convert(UInt, j₁ - m₁ )
-    β₃ = convert(UInt, j₂ + m₂ )
-
-    krange = max(α₁,α₂,zero(UInt)):min(β₁,β₂,β₃)
-
-end
-
-
-
-# compute the sum appearing in the 6j symbol
-function compute6jseries(β₁, β₂, β₃, α₁, α₂, α₃, α₄)
-    krange = max(α₁,α₂,α₃,α₄):min(β₁,β₂,β₃)
-
-    nums = Vector{typeof(snum)}(length(krange))
-    dens = Vector{typeof(snum)}(length(krange))
-
+    nums = Vector{T}(length(krange))
+    dens = Vector{T}(length(krange))
     for (i, k) in enumerate(krange)
-        num = iseven(k) ? primefactorial(k+1) : -primefactorial(k+1)
-        den = primefactorial(k-α₁)*primefactorial(k-α₂)*primefactorial(k-α₃)*
-            primefactorial(k-α₄)*primefactorial(β₁-k)*primefactorial(β₂-k)*primefactorial(β₃-k)
-        nums[i], dens[i] = divgcd(num, den)
+        num = iseven(k) ? primefactorial(1) : -primefactorial(1)
+        den = primefactorial(k)*primefactorial(k-α₁)*primefactorial(k-α₂)*
+            primefactorial(β₁-k)*primefactorial(β₂-k)*primefactorial(β₃-k)
+        nums[i], dens[i] = divgcd!(num, den)
     end
     den = commondenominator!(nums, dens)
     totalnum = sumlist!(nums)
     totalden = convert(BigInt, PrimeFactorization(den))
+    return totalnum//totalden
+end
+
+# compute the sum appearing in the 6j symbol
+function compute6jseries(β₁, β₂, β₃, α₁, α₂, α₃, α₄)
+    krange = max(α₁, α₂, α₃, α₄):min(β₁, β₂, β₃)
+    T = PrimeFactorization{eltype(eltype(factorialtable))}
+
+    nums = Vector{T}(length(krange))
+    dens = Vector{T}(length(krange))
+    for (i, k) in enumerate(krange)
+        num = iseven(k) ? primefactorial(k+1) : -primefactorial(k+1)
+        den = primefactorial(k-α₁)*primefactorial(k-α₂)*primefactorial(k-α₃)*
+            primefactorial(k-α₄)*primefactorial(β₁-k)*primefactorial(β₂-k)*primefactorial(β₃-k)
+        nums[i], dens[i] = divgcd!(num, den)
+    end
+    den = commondenominator!(nums, dens)
+    totalnum = sumlist!(nums)
+    totalden = convert(BigInt, PrimeFactorization(den))
+    return totalnum//totalden
 end
 
 end # module

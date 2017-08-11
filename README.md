@@ -42,9 +42,9 @@ Also uses ideas from
 
 for caching the computed 3j and 6j symbols.
 
-# Benchmark:
+## Benchmark
 
-## Todo:
+## Todo
 *   Wigner 9-j symbols, as explained in [1] and based on
 
     [3] [L. Wei, New formula for 9-j symbols and their direct calculation, Computers in Physics, 12 (1998), 632–634.](ftp://gravity.physics.uwa.edu.au/pub/Clebsch-Gordan/Papers/Wei9j.pdf)

@@ -94,3 +94,36 @@ for k = 1:10
         @test (X*wigner6j(BigFloat,j+1,j2,j3,l1,l2,l3) + Z*wigner6j(BigFloat,j-1,j2,j3,l1,l2,l3))≈(-Y*wigner6j(BigFloat,j,j2,j3,l1,l2,l3)) atol=tol
     end
 end
+
+# test recoupling, i.e. relation between 3j and 6j symbols (but use Clebsch-Gordan and RacahW)
+#---------------------------------------------------------------------------------------------
+smallerjlist = 0:1//2:5
+for j1 in smallerjlist, j2 in smallerjlist, j3 in smallerjlist
+    @show (j1,j2,j3)
+    m1range = -j1:j1
+    m2range = -j2:j2
+    m3range = -j3:j3
+    V1 = Array{Float64}(length(m1range),length(m2range),length(m3range))
+    V2 = Array{Float64}(length(m1range),length(m2range),length(m3range))
+    for J in max(abs(j1-j2-j3),abs(j1-j2+j3),abs(j1+j2-j3)):(j1+j2+j3)
+        J12range = max(abs(j1-j2),abs(J-j3)):min((j1+j2),(J+j3))
+        J23range = max(abs(j2-j3),abs(j1-J)):min((j2+j3),(j1+J))
+        for J12 in J12range, J23 in J23range
+            M = J # only test for J, should be independent
+            fill!(V1,0)
+            fill!(V2,0)
+            for (k1,m1) in enumerate(m1range)
+                for (k2,m2) in enumerate(m2range)
+                    abs(m1+m2)<=J12 || continue
+                    for (k3,m3) in enumerate(m3range)
+                        abs(m2+m3)<=J23 || continue
+                        m1+m2+m3==M || continue
+                        V1[k1,k2,k3] = clebschgordan(j1,m1,j2,m2,J12)*clebschgordan(J12,m1+m2,j3,m3,J)
+                        V2[k1,k2,k3] = clebschgordan(j2,m2,j3,m3,J23)*clebschgordan(j1,m1,J23,m2+m3,J)
+                    end
+                end
+            end
+            @test racahW(j1,j2,J,j3,J12,J23) ≈ vecdot(V2,V1)/sqrt((2*J12+1)*(2*J23+1)) atol=eps(Float64)
+        end
+    end
+end

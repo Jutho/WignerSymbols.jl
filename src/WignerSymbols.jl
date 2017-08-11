@@ -1,33 +1,76 @@
 module WignerSymbols
-export δ, Δ, clebschgordan, wigner3j, wigner6j
+export δ, Δ, clebschgordan, wigner3j, wigner6j, racahV, racahW
 
 include("primefactorization.jl")
 
 const Wigner3j = Dict{Tuple{UInt,UInt,UInt,Int,Int},Tuple{Rational{BigInt},Rational{BigInt}}}()
 const Wigner6j = Dict{NTuple{6,UInt},Tuple{Rational{BigInt},Rational{BigInt}}}()
 
-clebschgordan(j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) = clebschgordan(Float64, j₁, m₁, j₂, m₂, j₃, m₃)
-function clebschgordan(T::Type{<:AbstractFloat}, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂)
-    s = wigner3j(T, j₁, j₂, j₃, m₁, m₂, -m₃)
-    iszero(s) && return s
-    if isodd(convert(Int,j₁ - j₂ + m₃))
-        s *= -one(s)
-    end
-    s *= sqrt(convert(T, j₃+j₃+one(j₃)))
-    return s
+# check integerness and correctness of (j,m) angular momentum
+ϵ(j, m) = (abs(m) <= j && isinteger(j-m) && isinteger(j+m))
+
+# check triangle condition
+"""
+    δ(j₁, j₂, j₃) -> ::Bool
+
+Checks the triangle conditions `j₃ <= j₁ + j₂`, `j₁ <= j₂ + j₃` and `j₂ <= j₃ + j₁`.
+"""
+function δ(j₁, j₂, j₃)
+    j₃ <= j₁ + j₂ || return false
+    j₁ <= j₂ + j₃ || return false
+    j₂ <= j₃ + j₁ || return false
+    return true
 end
 
-wigner3j(j₁, j₂, j₃, m₁, m₂, m₃ = -m₂-m₃) = wigner3j(Float64, j₁, j₂, j₃, m₁, m₂, m₃)
-function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₂-m₃)
-    # check angular momenta and triangle condition
-    if !(δ(j₁, j₂, j₃) && ϵ(j₁, m₁) && ϵ(j₂, m₂) && ϵ(j₃, m₃))
-        throw(DomainError((j₁, j₂, j₃, m₁, m₂, m₃)))
+# triangle coefficient
+"""
+    Δ(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃) -> ::T
+
+Computes the triangle coefficient
+`Δ(j₁, j₂, j₃) = √((j₁+j₂-j₃)!*(j₁-j₂+j₃)!*(j₂+j₃-j₁)! / (j₁+j₂+j₃+1)!)`
+as a type `T` floating point number.
+
+Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
+throws a `DomainError` if the `jᵢ`s are not (half)integer
+"""
+
+Δ(j₁, j₂, j₃) = Δ(Float64, j₁, j₂, j₃)
+function Δ(T::Type{<:AbstractFloat}, j₁, j₂, j₃)
+    for jᵢ in (j₁, j₂, j₃)
+        (isinteger(2*jᵢ) && jᵢ >= 0) || throw(DomainError("invalid jᵢ", jᵢ))
     end
-    iszero(m₁+m₂+m₃) || return zero(T)
+    if !δ(j₁, j₂, j₃)
+        return zero(T)
+    end
+    n, d = Δ²(j₁, j₂, j₃)
+    return sqrt(convert(T, convert(BigInt, n) // convert(BigInt, d)))
+end
+
+"""
+    wigner3j(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, m₁, m₂, m₃ = -m₂-m₁) -> ::T
+
+Compute the value of the Wigner-3j symbol
+    ⎛ j₁  j₂  j₃ ⎞
+    ⎝ m₁  m₂  m₃ ⎠
+as a type `T` floating point number. By default, `T = Float64` and `m₃ = -m₁-m₂`.
+
+Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
+throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
+"""
+wigner3j(j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = wigner3j(Float64, j₁, j₂, j₃, m₁, m₂, m₃)
+function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
+    # check angular momenta
+    for (jᵢ,mᵢ) in ((j₁, m₁), (j₂, m₂), (j₃, m₃))
+        ϵ(jᵢ, mᵢ) || throw(DomainError("invalid (jᵢ, mᵢ)", (jᵢ, mᵢ) ))
+    end
+    # check triangle condition and m₁+m₂+m₃ == 0
+    if !δ(j₁, j₂, j₃) || !iszero(m₁+m₂+m₃)
+        return zero(T)
+    end
 
     # we reorder such that j₁ >= j₂ >= j₃ and m₁ >= 0 or m₁ == 0 && m₂ >= 0
     j₁, j₂, j₃, m₁, m₂, m₃, sgn = reorder3j(j₁, j₂, j₃, m₁, m₂, m₃)
-    # do we also want to use Regge symmetries?
+    # TODO: do we also want to use Regge symmetries?
     α₁ = convert(Int, j₂ - m₁ - j₃ ) # can be negative
     α₂ = convert(Int, j₁ + m₂ - j₃ ) # can be negative
     β₁ = convert(Int, j₁ + j₂ - j₃ )
@@ -41,12 +84,11 @@ function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ =
     if haskey(Wigner3j, (β₁, β₂, β₃, α₁, α₂))
         r, s = Wigner3j[(β₁, β₂, β₃, α₁, α₂)]
     else
-        s1 = Δ²(j₁, j₂, j₃)
-        s2 = prod(map(primefactorial, (β₂, β₁ - α₁, β₁ - α₂, β₃, β₃ - α₁, β₂ - α₂)))
+        s1n, s1d = Δ²(j₁, j₂, j₃)
+        s2n = prod(map(primefactorial, (β₂, β₁ - α₁, β₁ - α₂, β₃, β₃ - α₁, β₂ - α₂)))
 
-
-        snum, rnum = splitsquare(s1.num*s2)
-        sden, rden = splitsquare(s1.den)
+        snum, rnum = splitsquare(s1n*s2n)
+        sden, rden = splitsquare(s1d)
         s = convert(BigInt, snum) // convert(BigInt, sden)
         r = convert(BigInt, rnum) // convert(BigInt, rden)
         s *= compute3jseries(β₁, β₂, β₃, α₁, α₂)
@@ -56,17 +98,67 @@ function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ =
     return sgn*sqrt(convert(T, r))*convert(T, s)
 end
 
+"""
+    clebschgordan(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, m₁, m₂, m₃ = m₁+m₂) -> ::T
+
+Compute the value of the Clebsch-Gordan coefficient <j₁, m₁; j₂, m₂ | j₃, m₃ >
+as a type `T` floating point number. By default, `T = Float64` and `m₃ = m₁+m₂`.
+
+Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
+throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
+"""
+clebschgordan(j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) = clebschgordan(Float64, j₁, m₁, j₂, m₂, j₃, m₃)
+function clebschgordan(T::Type{<:AbstractFloat}, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂)
+    s = wigner3j(T, j₁, j₂, j₃, m₁, m₂, -m₃)
+    iszero(s) && return s
+    s *= sqrt(convert(T, j₃+j₃+one(j₃)))
+    return isodd(convert(Int,j₁ - j₂ + m₃)) ? -s : s
+end
+
+"""
+    racahV(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) -> ::T
+
+Compute the value of Racah's V-symbol
+V(j₁, j₂, j₃; m₁, m₂, m₃) = (-1)^(-j₁+j₂+j₃) * ⎛ j₁  j₂  j₃ ⎞
+                                               ⎝ m₁  m₂  m₃ ⎠
+as a type `T` floating point number. By default, `T = Float64` and `m₃ = -m₁-m₂`.
+
+Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
+throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
+"""
+racahV(j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = racahV(Float64, j₁, j₂, j₃, m₁, m₂, m₃)
+function racahV(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
+    s = wigner3j(T, j₁, j₂, j₃, m₁, m₂, m₃)
+    return isodd(convert(Int, -j₁ + j₂ + j₃)) ? -s : s
+end
+
+"""
+    wigner6j(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, j₄, j₅, j₆) -> ::T
+
+Compute the value of the Wigner-6j symbol
+    _⎧ j₁  j₂  j₃ ⎫_
+     ⎩ j₄  j₅  j₆ ⎭
+as a type `T` floating point number. By default, `T = Float64`.
+
+Returns `zero(T)` if any of triangle conditions `δ(j₁, j₂, j₃)`, `δ(j₁, j₆, j₅)`,
+`δ(j₂, j₄, j₆)`, `δ(j₃, j₄, j₅)` are not satisfied, but throws a `DomainError` if
+the `jᵢ`s are not integer or halfinteger.
+"""
 wigner6j(j₁, j₂, j₃, j₄, j₅, j₆) = wigner6j(Float64, j₁, j₂, j₃, j₄, j₅, j₆)
 function wigner6j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, j₄, j₅, j₆)
+    # check validity of `jᵢ`s
+    for jᵢ in (j₁, j₂, j₃, j₄, j₅, j₆)
+        (isinteger(2*jᵢ) && jᵢ >= 0) || throw(DomainError("invalid jᵢ", jᵢ))
+    end
+
     α̂₁ = (j₁, j₂, j₃)
-    α̂₂ = (j₁, j₅, j₆)
+    α̂₂ = (j₁, j₆, j₅)
     α̂₃ = (j₂, j₄, j₆)
     α̂₄ = (j₃, j₄, j₅)
 
     # check triangle conditions
     if !(δ(α̂₁...) && δ(α̂₂...) && δ(α̂₃...) && δ(α̂₄...))
         return zero(T)
-        # throw(DomainError())
     end
     # reduce
     α₁ = convert(UInt, +(α̂₁...))
@@ -86,13 +178,13 @@ function wigner6j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, j₄, j₅, j₆)
         r, s = Wigner6j[(β₁, β₂, β₃, α₁, α₂, α₃)]
     else
         # order irrelevant: product remains the same under action of reorder6j
-        Δ₁ = Δ²(α̂₁...)
-        Δ₂ = Δ²(α̂₂...)
-        Δ₃ = Δ²(α̂₃...)
-        Δ₄ = Δ²(α̂₄...)
+        n₁, d₁ = Δ²(α̂₁...)
+        n₂, d₂ = Δ²(α̂₂...)
+        n₃, d₃ = Δ²(α̂₃...)
+        n₄, d₄ = Δ²(α̂₄...)
 
-        snum, rnum = splitsquare(Δ₁.num * Δ₂.num * Δ₃.num * Δ₄.num)
-        sden, rden = splitsquare(Δ₁.den * Δ₂.den * Δ₃.den * Δ₄.den)
+        snum, rnum = splitsquare(n₁ * n₂ * n₃ * n₄)
+        sden, rden = splitsquare(d₁ * d₂ * d₃ * d₄)
         s = convert(BigInt, snum) // convert(BigInt, sden)
         r = convert(BigInt, rnum) // convert(BigInt, rden)
         s *= compute6jseries(β₁, β₂, β₃, α₁, α₂, α₃, α₄)
@@ -103,30 +195,23 @@ function wigner6j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, j₄, j₅, j₆)
     return sqrt(convert(T, r))*convert(T, s)
 end
 
+"""
+    racahW(T::Type{<:AbstractFloat} = Float64, j₁, j₂, J, j₃, J₁₂, J₂₃) -> ::T
 
-# check angular momentum
-ϵ(j, m) = (abs(m) <= j && isinteger(j-m) && isinteger(j+m))
+Compute the value of Racah's W coefficient
+`W(j₁, j₂, J, j₃; J₁₂, J₂₃) = <(j₁,(j₂j₃)J₂₃)J | ((j₁j₂)J₁₂,j₃)J> / sqrt((2J₁₂+1)*(2J₁₃+1))`
+as a type `T` floating point number. By default, `T = Float64`.
 
-# check triangle condition
-function δ(j₁, j₂, j₃)
-    j₃ <= j₁ + j₂ || return false
-    j₁ <= j₂ + j₃ || return false
-    j₂ <= j₃ + j₁ || return false
-    isinteger(j₁ + j₂ - j₃) || return false
-    isinteger(j₁ - j₂ + j₃) || return false
-    isinteger(j₁ - j₂ - j₃) || return false
-    return true
+Returns `zero(T)` if any of triangle conditions `δ(j₁, j₂, J₁₂)`, `δ(j₂, j₃, J₂₃)`,
+`δ(j₁, J₂₃, J)`, `δ(J₁₂, j₃, J)` are not satisfied, but throws a `DomainError` if
+the `jᵢ`s and `J`s are not integer or halfinteger.
+"""
+racahW(j₁, j₂, J, j₃, J₁₂, J₂₃) = racahW(Float64, j₁, j₂, J, j₃, J₁₂, J₂₃)
+function racahW(T::Type{<:AbstractFloat}, j₁, j₂, J, j₃, J₁₂, J₂₃)
+    s = wigner6j(T, j₁, j₂, J₁₂, j₃, J, J₂₃)
+    return isodd(convert(Int, j₁ + j₂ + j₃ + J)) ? -s : s
 end
 
-# triangle coefficient
-Δ(j₁, j₂, j₃) = Δ(Float64, j₁, j₂, j₃)
-function Δ(T::Type{<:AbstractFloat}, j₁, j₂, j₃)
-    if !δ(j₁, j₂, j₃)
-        throw(DomainError())
-    end
-    v = Δ²(j₁, j₂, j₃)
-    return sqrt(convert(T, convert(BigInt, v.num) // convert(BigInt, v.den)))
-end
 
 # squared triangle coefficient
 function Δ²(j₁, j₂, j₃)
@@ -136,7 +221,7 @@ function Δ²(j₁, j₂, j₃)
     n3 = primefactorial( convert(UInt, - j₁ + j₂ + j₃) )
     d = primefactorial( convert(UInt, j₁ + j₂ + j₃ + 1) )
     # result
-    return (n1*n2*n3)//d
+    return (n1*n2*n3), d
 end
 
 # reorder parameters determining the 3j symbol to canonical order:

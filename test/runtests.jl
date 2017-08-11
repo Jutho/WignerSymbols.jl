@@ -123,7 +123,7 @@ for j1 in smallerjlist, j2 in smallerjlist, j3 in smallerjlist
                     end
                 end
             end
-            @test racahW(j1,j2,J,j3,J12,J23) ≈ vecdot(V2,V1)/sqrt((2*J12+1)*(2*J23+1)) atol=eps(Float64)
+            @test racahW(j1,j2,J,j3,J12,J23) ≈ vecdot(V2,V1)/sqrt((2*J12+1)*(2*J23+1)) atol=10*eps(Float64)
         end
     end
 end

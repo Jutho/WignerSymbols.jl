@@ -99,7 +99,6 @@ end
 #---------------------------------------------------------------------------------------------
 smallerjlist = 0:1//2:5
 for j1 in smallerjlist, j2 in smallerjlist, j3 in smallerjlist
-    @show (j1,j2,j3)
     m1range = -j1:j1
     m2range = -j2:j2
     m3range = -j3:j3

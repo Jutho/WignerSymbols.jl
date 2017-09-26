@@ -231,7 +231,7 @@ function sumlist!(list::Vector{<:PrimeFactorization}, ind = 1:length(list))
     L = length(ind)
     if L > 32
         l = L >> 1
-        s = sumlist!(list, first(ind)+(0:l-1)) + sumlist!(list, first(ind)+(l:L-1))
+        s = sumlist!(list, first(ind).+(0:l-1)) + sumlist!(list, first(ind).+(l:L-1))
     else
         # do sum
         s = big(0)

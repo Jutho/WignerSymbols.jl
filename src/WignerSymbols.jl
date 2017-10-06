@@ -1,3 +1,4 @@
+__precompile__(false)
 module WignerSymbols
 export δ, Δ, clebschgordan, wigner3j, wigner6j, racahV, racahW
 
@@ -19,6 +20,7 @@ function δ(j₁, j₂, j₃)
     j₃ <= j₁ + j₂ || return false
     j₁ <= j₂ + j₃ || return false
     j₂ <= j₃ + j₁ || return false
+    isinteger(j₁+j₂+j₃) || return false
     return true
 end
 

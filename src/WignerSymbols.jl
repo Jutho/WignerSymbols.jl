@@ -211,7 +211,11 @@ the `jᵢ`s and `J`s are not integer or halfinteger.
 racahW(j₁, j₂, J, j₃, J₁₂, J₂₃) = racahW(Float64, j₁, j₂, J, j₃, J₁₂, J₂₃)
 function racahW(T::Type{<:AbstractFloat}, j₁, j₂, J, j₃, J₁₂, J₂₃)
     s = wigner6j(T, j₁, j₂, J₁₂, j₃, J, J₂₃)
-    return isodd(convert(Int, j₁ + j₂ + j₃ + J)) ? -s : s
+    if !iszero(s) && isodd(convert(Int, j₁ + j₂ + j₃ + J))
+        return -s
+    else
+        return s
+    end
 end
 
 

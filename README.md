@@ -1,9 +1,9 @@
 # WignerSymbols
 
-[![Build Status](https://travis-ci.org/Jutho/WignerSymbols.jl.svg?branch=master)](https://travis-ci.org/jutho/WignerSymbols.jl)
+[![Build Status](https://travis-ci.org/Jutho/WignerSymbols.jl.svg?branch=master)](https://travis-ci.org/Jutho/WignerSymbols.jl)
 [![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.md)
 [![Coverage Status](https://coveralls.io/repos/Jutho/WignerSymbols.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/Jutho/WignerSymbols.jl?branch=master)
-[![codecov.io](http://codecov.io/github/jutho/WignerSymbols.jl/coverage.svg?branch=master)](http://codecov.io/github/Jutho/WignerSymbols.jl?branch=master)
+[![codecov.io](http://codecov.io/github/Jutho/WignerSymbols.jl/coverage.svg?branch=master)](http://codecov.io/github/Jutho/WignerSymbols.jl?branch=master)
 
 Compute Wigner's 3j and 6j symbols, and related quantities such as Clebsch-Gordan coefficients and Racah's symbols.
 

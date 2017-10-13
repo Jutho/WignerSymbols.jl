@@ -1,6 +1,13 @@
 using Primes.isprime
 import Base.divgcd
 
+if VERSION <= v"0.7.0-DEV.262"
+    include("mpz.jl")
+    using .MPZ
+else
+    using Base.GMP.MPZ
+end
+
 
 const primetable = [2,3,5]
 const factortable = [UInt8[], UInt8[1], UInt8[0,1], UInt8[2], UInt8[0,0,1]]
@@ -115,7 +122,7 @@ function Base.convert(::Type{BigInt}, a::PrimeFactorization)
     A = big(a.sign)
     for (n, e) in enumerate(a.powers)
         if !iszero(e)
-            Base.GMP.MPZ.mul!(A, bigprime(n, e))
+            MPZ.mul!(A, bigprime(n, e))
         end
     end
     return A
@@ -236,10 +243,10 @@ function sumlist!(list::Vector{<:PrimeFactorization}, ind = 1:length(list))
         # do sum
         s = big(0)
         for k in ind
-            Base.GMP.MPZ.add!(s, convert(BigInt, list[k]))
+            MPZ.add!(s, convert(BigInt, list[k]))
         end
     end
-    return Base.GMP.MPZ.mul!(s, convert(BigInt, g))
+    return MPZ.mul!(s, convert(BigInt, g))
 end
 
 # Mutating vector methods that also grow and shrink as required

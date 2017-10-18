@@ -8,10 +8,15 @@
 Compute Wigner's 3j and 6j symbols, and related quantities such as Clebsch-Gordan coefficients and Racah's symbols.
 
 ## Requirements
-This requires a recent master edition of Julia (i.e. v0.7.0-DEV), because it depends on some changes in `Base.GMP`. In particular, it uses the mutating functions for reducing allocation overhead while working with `BigInts` (namely [JuliaLang/julia#21654](https://github.com/JuliaLang/julia/pull/21654)). It also depends on `Primes.jl` for generating prime numbers.
+~~This requires a recent master edition of Julia (i.e. v0.7.0-DEV), because it depends on some changes in `Base.GMP`. In particular, it uses the mutating functions for reducing allocation overhead while working with `BigInts` (namely [JuliaLang/julia#21654](https://github.com/JuliaLang/julia/pull/21654)). It also depends on `Primes.jl` for generating prime numbers.~~
+
+Now works from Julia v0.6.0 onwards (by including/backporting the relevant code from Julia Base in this package).
+
 
 ## Installation
-Until it is registered, install via `Pkg.clone("https://github.com/Jutho/WignerSymbols.jl.git")`.
+~~Until it is registered, install via `Pkg.clone("https://github.com/Jutho/WignerSymbols.jl.git")`.~~
+
+Now that it is register, install via `Pkg.add("https://github.com/Jutho/WignerSymbols.jl.git")`.
 
 ## Available functions
 While the following function signatures are probably self-explanatory, you can query help for them in the Julia REPL to get further details.

@@ -16,7 +16,7 @@ Now works from Julia v0.6.0 onwards (by including/backporting the relevant code 
 ## Installation
 ~~Until it is registered, install via `Pkg.clone("https://github.com/Jutho/WignerSymbols.jl.git")`.~~
 
-Now that it is register, install via `Pkg.add("https://github.com/Jutho/WignerSymbols.jl.git")`.
+Now that it is register, install via `Pkg.add("WignerSymbols")`.
 
 ## Available functions
 While the following function signatures are probably self-explanatory, you can query help for them in the Julia REPL to get further details.

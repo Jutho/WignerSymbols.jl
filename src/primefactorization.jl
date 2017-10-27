@@ -13,6 +13,7 @@ const primetable = [2,3,5]
 const factortable = [UInt8[], UInt8[1], UInt8[0,1], UInt8[2], UInt8[0,0,1]]
 const factorialtable = [UInt32[], UInt32[], UInt32[1], UInt32[1,1], UInt32[3,1], UInt32[3,1,1]]
 const bigprimetable = [[big(2)], [big(3)], [big(5)]]
+const bigone = Ref{BigInt}(big(1))
 
 # Make a prime iterator
 struct PrimeIterator
@@ -42,9 +43,8 @@ Base.next(::PrimeIterator, n) = prime(n), n+1
 Base.done(::PrimeIterator, n) = false
 
 # get primes and their powers as `BigInt`, also cache all results
-const bigone = big(1)
 function bigprime(n::Integer, e::Integer=1)
-    e == 0 && return bigone
+    e == 0 && return bigone[]
     p = prime(n) # triggers computation of prime(n) if necessary
     @inbounds l = length(bigprimetable[n])
     @inbounds while l < e

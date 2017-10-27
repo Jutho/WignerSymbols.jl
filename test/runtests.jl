@@ -119,7 +119,7 @@ end
             J12range = max(abs(j1-j2),abs(J-j3)):min((j1+j2),(J+j3))
             J23range = max(abs(j2-j3),abs(j1-J)):min((j2+j3),(j1+J))
             for J12 in J12range, J23 in J23range
-                M = J # only test for J, should be independent
+                M = rand(-J:J) # only test for one instance of M in -J:J, should be independent of M anyway
                 fill!(V1,0)
                 fill!(V2,0)
                 for (k1,m1) in enumerate(m1range)

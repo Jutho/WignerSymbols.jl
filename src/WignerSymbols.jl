@@ -73,7 +73,7 @@ wigner3j(j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = wigner3j(Float64, j�
 function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
     # check angular momenta
     for (jᵢ,mᵢ) in ((j₁, m₁), (j₂, m₂), (j₃, m₃))
-        ϵ(jᵢ, mᵢ) || throw(DomainError("invalid (jᵢ, mᵢ)", (jᵢ, mᵢ) ))
+        ϵ(jᵢ, mᵢ) || throw(DomainError((jᵢ, mᵢ), "invalid combination (jᵢ, mᵢ)"))
     end
     # check triangle condition and m₁+m₂+m₃ == 0
     if !δ(j₁, j₂, j₃) || !iszero(m₁+m₂+m₃)
@@ -111,7 +111,7 @@ function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ =
 end
 
 """
-    clebschgordan(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, m₁, m₂, m₃ = m₁+m₂) -> ::T
+    clebschgordan(T::Type{<:AbstractFloat} = Float64, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) -> ::T
 
 Compute the value of the Clebsch-Gordan coefficient <j₁, m₁; j₂, m₂ | j₃, m₃ >
 as a type `T` floating point number. By default, `T = Float64` and `m₃ = m₁+m₂`.

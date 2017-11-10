@@ -22,7 +22,7 @@ Now that it is register, install via `Pkg.add("WignerSymbols")`.
 While the following function signatures are probably self-explanatory, you can query help for them in the Julia REPL to get further details.
 *   `wigner3j(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, m₁, m₂, m₃ = -m₂-m₁) -> ::T`
 *   `wigner6j(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, j₄, j₅, j₆) -> ::T`
-*   `clebschgordan(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, m₁, m₂, m₃ = m₁+m₂) -> ::T`
+*   `clebschgordan(T::Type{<:AbstractFloat} = Float64, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) -> ::T`
 *   `racahV(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) -> ::T`
 *   `racahW(T::Type{<:AbstractFloat} = Float64, j₁, j₂, J, j₃, J₁₂, J₂₃) -> ::T`
 *   `δ(j₁, j₂, j₃) -> ::Bool`

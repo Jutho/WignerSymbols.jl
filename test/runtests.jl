@@ -4,6 +4,7 @@ end
 
 using Test
 using WignerSymbols
+using Compat
 
 smalljlist = 0:1//2:10
 largejlist = 0:1//2:1000
@@ -113,8 +114,8 @@ end
         m1range = -j1:j1
         m2range = -j2:j2
         m3range = -j3:j3
-        V1 = Array{Float64}(length(m1range),length(m2range),length(m3range))
-        V2 = Array{Float64}(length(m1range),length(m2range),length(m3range))
+        V1 = Array{Float64}(uninitialized, length(m1range),length(m2range),length(m3range))
+        V2 = Array{Float64}(uninitialized, length(m1range),length(m2range),length(m3range))
         for J in max(abs(j1-j2-j3),abs(j1-j2+j3),abs(j1+j2-j3)):(j1+j2+j3)
             J12range = max(abs(j1-j2),abs(J-j3)):min((j1+j2),(J+j3))
             J23range = max(abs(j2-j3),abs(j1-J)):min((j2+j3),(j1+J))

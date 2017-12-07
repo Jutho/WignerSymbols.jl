@@ -1,14 +1,6 @@
 using Primes.isprime
 import Base.divgcd
 
-if VERSION <= v"0.7.0-DEV.262"
-    include("mpz.jl")
-    using .MPZ
-else
-    using Base.GMP.MPZ
-end
-
-
 const primetable = [2,3,5]
 const factortable = [UInt8[], UInt8[1], UInt8[0,1], UInt8[2], UInt8[0,0,1]]
 const factorialtable = [UInt32[], UInt32[], UInt32[1], UInt32[1,1], UInt32[3,1], UInt32[3,1,1]]

@@ -1,4 +1,4 @@
-using Primes.isprime
+using Primes: isprime
 import Base.divgcd
 
 const primetable = [2,3,5]

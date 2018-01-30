@@ -11,8 +11,7 @@ end
 
 using Compat
 
-
-
+include("halfinteger.jl")
 include("primefactorization.jl")
 
 const Wigner3j = Dict{Tuple{UInt,UInt,UInt,Int,Int},Tuple{Rational{BigInt},Rational{BigInt}}}()
@@ -29,7 +28,7 @@ function __init__()
 end
 
 # check integerness and correctness of (j,m) angular momentum
-ϵ(j, m) = (abs(m) <= j && isinteger(j-m) && isinteger(j+m))
+ϵ(j, m) = (abs(m) <= j && ishalfinteger(j) && isinteger(j-m) && isinteger(j+m))
 
 # check triangle condition
 """
@@ -60,7 +59,7 @@ throws a `DomainError` if the `jᵢ`s are not (half)integer
 Δ(j₁, j₂, j₃) = Δ(Float64, j₁, j₂, j₃)
 function Δ(T::Type{<:AbstractFloat}, j₁, j₂, j₃)
     for jᵢ in (j₁, j₂, j₃)
-        (isinteger(2*jᵢ) && jᵢ >= 0) || throw(DomainError("invalid jᵢ", jᵢ))
+        (ishalfinteger(jᵢ) && jᵢ >= 0) || throw(DomainError("invalid jᵢ", jᵢ))
     end
     if !δ(j₁, j₂, j₃)
         return zero(T)
@@ -171,13 +170,13 @@ wigner6j(j₁, j₂, j₃, j₄, j₅, j₆) = wigner6j(Float64, j₁, j₂, j�
 function wigner6j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, j₄, j₅, j₆)
     # check validity of `jᵢ`s
     for jᵢ in (j₁, j₂, j₃, j₄, j₅, j₆)
-        (isinteger(2*jᵢ) && jᵢ >= 0) || throw(DomainError("invalid jᵢ", jᵢ))
+        (ishalfinteger(jᵢ) && jᵢ >= 0) || throw(DomainError("invalid jᵢ", jᵢ))
     end
 
-    α̂₁ = (j₁, j₂, j₃)
-    α̂₂ = (j₁, j₆, j₅)
-    α̂₃ = (j₂, j₄, j₆)
-    α̂₄ = (j₃, j₄, j₅)
+    α̂₁ = map(converthalfinteger, (j₁, j₂, j₃))
+    α̂₂ = map(converthalfinteger, (j₁, j₆, j₅))
+    α̂₃ = map(converthalfinteger, (j₂, j₄, j₆))
+    α̂₄ = map(converthalfinteger, (j₃, j₄, j₅))
 
     # check triangle conditions
     if !(δ(α̂₁...) && δ(α̂₂...) && δ(α̂₃...) && δ(α̂₄...))
@@ -239,7 +238,8 @@ function racahW(T::Type{<:AbstractFloat}, j₁, j₂, J, j₃, J₁₂, J₂₃)
     end
 end
 
-
+# COMPUTATIONAL ROUTINES
+#------------------------
 # squared triangle coefficient
 function Δ²(j₁, j₂, j₃)
     # also checks the triangle conditions by converting to unsigned integer:

@@ -25,7 +25,9 @@ function Base.convert(::Type{HalfInteger}, r::Rational)
     end
 end
 Base.convert(::Type{HalfInteger}, r::Real) = convert(HalfInteger, convert(Rational, r))
-Base.convert(T::Type{<:Real}, s::HalfInteger) = convert(T, s.num//2)
+Base.convert(T::Type{<:Integer}, s::HalfInteger) = iseven(s.num) ? convert(T, s.num>>1) : throw(InexactError())
+Base.convert(T::Type{<:Rational}, s::HalfInteger) = convert(T, s.num//2)
+Base.convert(T::Type{<:Real}, s::HalfInteger) = convert(T, s.num/2)
 Base.convert(::Type{HalfInteger}, s::HalfInteger) = s
 
 Base.isinteger(a::HalfInteger) = iseven(a.num)

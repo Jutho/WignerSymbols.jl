@@ -12,8 +12,8 @@ struct PrimeIterator
 end
 primes() = PrimeIterator()
 
-Base.iteratorsize(::Type{PrimeIterator}) = Base.IsInfinite()
-Base.iteratoreltype(::Type{PrimeIterator}) = Base.HasEltype()
+Compat.IteratorSize(::Type{PrimeIterator}) = Base.IsInfinite()
+Compat.IteratorEltype(::Type{PrimeIterator}) = Base.HasEltype()
 Base.eltype(::PrimeIterator) = Int
 
 # Get the `n`th prime; store all primes up to the `n`th if not yet available

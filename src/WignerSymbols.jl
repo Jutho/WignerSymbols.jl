@@ -117,7 +117,7 @@ function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ =
         Wigner3j[(β₁, β₂, β₃, α₁, α₂)] = (r,s)
     end
 
-    return sgn*sqrt(convert(T, r))*convert(T, s)
+    return sgn*sqrt(convert(T, r.num)/convert(T, r.den))*(convert(T, s.num)/convert(T, s.den))
 end
 
 """
@@ -214,7 +214,7 @@ function wigner6j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, j₄, j₅, j₆)
         Wigner6j[(β₁, β₂, β₃, α₁, α₂, α₃)] = (r, s)
     end
 
-    return sqrt(convert(T, r))*convert(T, s)
+    return sqrt(convert(T, r.num)/convert(T, r.den))*(convert(T, s.num)/convert(T, s.den))
 end
 
 """

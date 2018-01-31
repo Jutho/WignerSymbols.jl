@@ -30,6 +30,20 @@ Base.convert(T::Type{<:Rational}, s::HalfInteger) = convert(T, s.num//2)
 Base.convert(T::Type{<:Real}, s::HalfInteger) = convert(T, s.num/2)
 Base.convert(::Type{HalfInteger}, s::HalfInteger) = s
 
+function Base.hash(a::HalfInteger, h::UInt)
+    iseven(a.num) && return hash(a.num>>1, h)
+    num, den = a.num, 2
+    den = 1
+    pow = -1
+    if abs(num) < 9007199254740992
+        return hash(ldexp(Float64(num),pow), h)
+    end
+    h = Base.hash_integer(den, h)
+    h = Base.hash_integer(pow, h)
+    h = Base.hash_integer(num, h)
+    return h
+end
+
 Base.isinteger(a::HalfInteger) = iseven(a.num)
 ishalfinteger(a::HalfInteger) = true
 ishalfinteger(a::Integer) = true

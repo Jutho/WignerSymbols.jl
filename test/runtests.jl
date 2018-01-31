@@ -5,6 +5,7 @@ end
 using Test
 using WignerSymbols
 using Compat
+using Compat.LinearAlgebra
 
 smalljlist = 0:1//2:10
 largejlist = 0:1//2:1000

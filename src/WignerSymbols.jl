@@ -55,7 +55,6 @@ as a type `T` floating point number.
 Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
 throws a `DomainError` if the `jᵢ`s are not (half)integer
 """
-
 Δ(j₁, j₂, j₃) = Δ(Float64, j₁, j₂, j₃)
 function Δ(T::Type{<:AbstractFloat}, j₁, j₂, j₃)
     for jᵢ in (j₁, j₂, j₃)

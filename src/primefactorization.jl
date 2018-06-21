@@ -12,8 +12,8 @@ struct PrimeIterator
 end
 primes() = PrimeIterator()
 
-Compat.IteratorSize(::Type{PrimeIterator}) = Base.IsInfinite()
-Compat.IteratorEltype(::Type{PrimeIterator}) = Base.HasEltype()
+Base.IteratorSize(::Type{PrimeIterator}) = Base.IsInfinite()
+Base.IteratorEltype(::Type{PrimeIterator}) = Base.HasEltype()
 Base.eltype(::PrimeIterator) = Int
 
 # Get the `n`th prime; store all primes up to the `n`th if not yet available
@@ -30,9 +30,7 @@ function prime(n::Int)
     @inbounds return primetable[n]
 end
 
-Base.start(::PrimeIterator) = 1
-Base.next(::PrimeIterator, n) = prime(n), n+1
-Base.done(::PrimeIterator, n) = false
+Base.iterate(::PrimeIterator, n = 1) = prime(n), n+1
 
 # get primes and their powers as `BigInt`, also cache all results
 function bigprime(n::Integer, e::Integer=1)

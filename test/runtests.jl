@@ -1,11 +1,6 @@
-if VERSION < v"0.7.0-DEV.2005"
-    const Test = Base.Test
-end
-
 using Test
 using WignerSymbols
-using Compat
-using Compat.LinearAlgebra
+using LinearAlgebra
 
 smalljlist = 0:1//2:10
 largejlist = 0:1//2:1000
@@ -13,8 +8,8 @@ largejlist = 0:1//2:1000
 @testset "triangle coefficient" begin
     for j1 in smalljlist, j2 in smalljlist
         for j3 = abs(j1-j2):(j1+j2)
-            @test Δ(j1,j2,j3) ≈ sqrt(factorial(float(j1+j2-j3))*factorial(float(j1-j2+j3))*
-                                        factorial(float(j2+j3-j1))/factorial(float(j1+j2+j3+1)))
+            @test Δ(j1,j2,j3) ≈ sqrt(factorial(big(Int(j1+j2-j3)))*factorial(big(Int(j1-j2+j3)))*
+                                        factorial(big(Int(j2+j3-j1)))/factorial(big(Int(j1+j2+j3+1))))
         end
     end
 end
@@ -25,7 +20,7 @@ end
     for j1 in smalljlist, j2 in smalljlist
         d1 = 2*j1+1
         d2 = 2*j2+1
-        M = zeros(d1*d2, d1*d2)
+        M = zeros(Float64, (d1*d2, d1*d2))
         ind1 = 1
         for m1 in -j1:j1, m2 in -j2:j2
             ind2 = 1
@@ -67,7 +62,7 @@ end
             j6range = max(abs(j2-j4),abs(j1-j5)):min((j2+j4),(j1+j5))
             j3range = max(abs(j1-j2),abs(j4-j5)):min((j1+j2),(j4+j5))
             @test length(j6range) == length(j3range)
-            M = zeros(length(j3range),length(j6range))
+            M = zeros(Float64, (length(j3range), length(j6range)))
             for (k2,j6) in enumerate(j6range)
                 for (k1,j3) in enumerate(j3range)
                     M[k1,k2] = sqrt(2*j3+1)*sqrt(2*j6+1)*wigner6j(j1,j2,j3,j4,j5,j6)
@@ -115,8 +110,8 @@ end
         m1range = -j1:j1
         m2range = -j2:j2
         m3range = -j3:j3
-        V1 = Array{Float64}(uninitialized, length(m1range),length(m2range),length(m3range))
-        V2 = Array{Float64}(uninitialized, length(m1range),length(m2range),length(m3range))
+        V1 = Array{Float64}(undef, length(m1range),length(m2range),length(m3range))
+        V2 = Array{Float64}(undef, length(m1range),length(m2range),length(m3range))
         for J in max(abs(j1-j2-j3),abs(j1-j2+j3),abs(j1+j2-j3)):(j1+j2+j3)
             J12range = max(abs(j1-j2),abs(J-j3)):min((j1+j2),(J+j3))
             J23range = max(abs(j2-j3),abs(j1-J)):min((j2+j3),(j1+J))

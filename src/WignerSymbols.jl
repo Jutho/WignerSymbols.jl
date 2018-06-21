@@ -2,14 +2,7 @@ __precompile__(true)
 module WignerSymbols
 export δ, Δ, clebschgordan, wigner3j, wigner6j, racahV, racahW
 
-if VERSION <= v"0.7.0-DEV.262"
-    include("mpz.jl")
-    using .MPZ
-else
-    using Base.GMP.MPZ
-end
-
-using Compat
+using Base.GMP.MPZ
 
 include("halfinteger.jl")
 include("primefactorization.jl")
@@ -293,8 +286,8 @@ function compute3jseries(β₁, β₂, β₃, α₁, α₂)
     krange = max(α₁, α₂, zero(α₁)):min(β₁, β₂, β₃)
     T = PrimeFactorization{eltype(eltype(factorialtable))}
 
-    nums = Vector{T}(uninitialized, length(krange))
-    dens = Vector{T}(uninitialized, length(krange))
+    nums = Vector{T}(undef, length(krange))
+    dens = Vector{T}(undef, length(krange))
     for (i, k) in enumerate(krange)
         num = iseven(k) ? one(T) : -one(T)
         den = primefactorial(k)*primefactorial(k-α₁)*primefactorial(k-α₂)*
@@ -312,8 +305,8 @@ function compute6jseries(β₁, β₂, β₃, α₁, α₂, α₃, α₄)
     krange = max(α₁, α₂, α₃, α₄):min(β₁, β₂, β₃)
     T = PrimeFactorization{eltype(eltype(factorialtable))}
 
-    nums = Vector{T}(uninitialized, length(krange))
-    dens = Vector{T}(uninitialized, length(krange))
+    nums = Vector{T}(undef, length(krange))
+    dens = Vector{T}(undef, length(krange))
     for (i, k) in enumerate(krange)
         num = iseven(k) ? primefactorial(k+1) : -primefactorial(k+1)
         den = primefactorial(k-α₁)*primefactorial(k-α₂)*primefactorial(k-α₃)*

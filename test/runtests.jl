@@ -18,8 +18,8 @@ end
 #--------
 @testset "clebschgordan: test orthogonality" begin
     for j1 in smalljlist, j2 in smalljlist
-        d1 = 2*j1+1
-        d2 = 2*j2+1
+        d1::Int = 2*j1+1
+        d2::Int = 2*j2+1
         M = zeros(Float64, (d1*d2, d1*d2))
         ind1 = 1
         for m1 in -j1:j1, m2 in -j2:j2
@@ -130,7 +130,7 @@ end
                         end
                     end
                 end
-                @test racahW(j1,j2,J,j3,J12,J23) ≈ vecdot(V2,V1)/sqrt((2*J12+1)*(2*J23+1)) atol=10*eps(Float64)
+                @test racahW(j1,j2,J,j3,J12,J23) ≈ dot(V2,V1)/sqrt((2*J12+1)*(2*J23+1)) atol=10*eps(Float64)
             end
         end
     end

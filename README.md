@@ -1,5 +1,7 @@
 # WignerSymbols
 
+[![WignerSymbols](http://pkg.julialang.org/badges/WignerSymbols_0.7.svg)](http://pkg.julialang.org/?pkg=WignerSymbols)
+[![WignerSymbols](http://pkg.julialang.org/badges/WignerSymbols_0.6.svg)](http://pkg.julialang.org/?pkg=WignerSymbols)
 [![Build Status](https://travis-ci.org/Jutho/WignerSymbols.jl.svg?branch=master)](https://travis-ci.org/Jutho/WignerSymbols.jl)
 [![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.md)
 [![Coverage Status](https://coveralls.io/repos/Jutho/WignerSymbols.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/Jutho/WignerSymbols.jl?branch=master)
@@ -8,15 +10,10 @@
 Compute Wigner's 3j and 6j symbols, and related quantities such as Clebsch-Gordan coefficients and Racah's symbols.
 
 ## Requirements
-~~This requires a recent master edition of Julia (i.e. v0.7.0-DEV), because it depends on some changes in `Base.GMP`. In particular, it uses the mutating functions for reducing allocation overhead while working with `BigInts` (namely [JuliaLang/julia#21654](https://github.com/JuliaLang/julia/pull/21654)). It also depends on `Primes.jl` for generating prime numbers.~~
-
-Now works from Julia v0.6.0 onwards (by including/backporting the relevant code from Julia Base in this package).
-
+Latest version is compatible with Julia v0.7- only, but older versions can be installed on Julia v0.6.
 
 ## Installation
-~~Until it is registered, install via `Pkg.clone("https://github.com/Jutho/WignerSymbols.jl.git")`.~~
-
-Now that it is register, install via `Pkg.add("WignerSymbols")`.
+Install via `Pkg.add("WignerSymbols")`.
 
 ## Available functions
 While the following function signatures are probably self-explanatory, you can query help for them in the Julia REPL to get further details.
@@ -46,8 +43,6 @@ Also uses ideas from
 [2] [J. Rasch and A. C. H. Yu, SIAM Journal on Scientific Compututing 25 (2003), 1416–1428](https://doi.org/10.1137/S1064827503422932)
 
 for caching the computed 3j and 6j symbols.
-
-## Benchmark
 
 ## Todo
 *   Wigner 9-j symbols, as explained in [1] and based on

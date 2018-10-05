@@ -1,7 +1,5 @@
 # WignerSymbols
 
-[![WignerSymbols](http://pkg.julialang.org/badges/WignerSymbols_0.7.svg)](http://pkg.julialang.org/?pkg=WignerSymbols)
-[![WignerSymbols](http://pkg.julialang.org/badges/WignerSymbols_0.6.svg)](http://pkg.julialang.org/?pkg=WignerSymbols)
 [![Build Status](https://travis-ci.org/Jutho/WignerSymbols.jl.svg?branch=master)](https://travis-ci.org/Jutho/WignerSymbols.jl)
 [![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.md)
 [![Coverage Status](https://coveralls.io/repos/Jutho/WignerSymbols.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/Jutho/WignerSymbols.jl?branch=master)

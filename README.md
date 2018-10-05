@@ -10,10 +10,14 @@
 Compute Wigner's 3j and 6j symbols, and related quantities such as Clebsch-Gordan coefficients and Racah's symbols.
 
 ## Requirements
-Latest version is compatible with Julia v0.7- only, but older versions can be installed on Julia v0.6.
+Latest version is compatible with Julia v0.7 only, but older versions can be installed on Julia v0.6.
 
 ## Installation
-Install via `Pkg.add("WignerSymbols")`.
+Install with the new package manager via `]add WignerSymbols` or
+```julia
+using Pkg
+Pkg.add("WignerSymbols")
+```
 
 ## Available functions
 While the following function signatures are probably self-explanatory, you can query help for them in the Julia REPL to get further details.

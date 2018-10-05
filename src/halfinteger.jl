@@ -21,11 +21,18 @@ function Base.convert(::Type{HalfInteger}, r::Rational)
     elseif r.den == 2
         return HalfInteger(r.num)
     else
-        throw(InexactError())
+        throw(InexactError(:HalfInteger, HalfInteger, r))
     end
 end
-Base.convert(::Type{HalfInteger}, r::Real) = convert(HalfInteger, convert(Rational, r))
-Base.convert(T::Type{<:Integer}, s::HalfInteger) = iseven(s.num) ? convert(T, s.num>>1) : throw(InexactError())
+function Base.convert(::Type{HalfInteger}, r::Real)
+    num = 2*r
+    if isinteger(num)
+        return HalfInteger(convert(Int, num))
+    else
+        throw(InexactError(:HalfInteger, HalfInteger, r))
+    end
+end
+Base.convert(T::Type{<:Integer}, s::HalfInteger) = iseven(s.num) ? convert(T, s.num>>1) : throw(InexactError(Symbol(T), T, s))
 Base.convert(T::Type{<:Rational}, s::HalfInteger) = convert(T, s.num//2)
 Base.convert(T::Type{<:Real}, s::HalfInteger) = convert(T, s.num/2)
 Base.convert(::Type{HalfInteger}, s::HalfInteger) = s

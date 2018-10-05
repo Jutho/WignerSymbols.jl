@@ -5,8 +5,8 @@ os:
   - osx
 julia:
   - 0.7
+  - 1.0
   - nightly
-
 matrix:
   allow_failures:
     - julia: nightly
@@ -14,4 +14,5 @@ notifications:
     email: false
 
 after_success:
-  - julia -e 'cd(Pkg.dir("WignerSymbols")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder()); Codecov.submit(process_folder())';
+  # push coverage results to Coveralls
+  - julia -e 'using Pkg; Pkg.add("WignerSymbols"); using Coverage; Coveralls.submit(Coveralls.process_folder()); Codecov.submit(Codecov.process_folder())'

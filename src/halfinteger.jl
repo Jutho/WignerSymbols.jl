@@ -83,6 +83,30 @@ function Base.hash(a::HalfInteger, h::UInt)
     return h
 end
 
+# Parsing and printing
+
+"""
+    parse(HalfInteger, s)
+
+Parses the string `s` into the corresponding `HalfInteger`-value. String can either be a
+number or a fraction of the form `<x>/2`.
+"""
+function Base.parse(::Type{HalfInteger}, s::AbstractString)
+    if in('/', s)
+        J_numerator, J_denominator = split(s, '/'; limit=2)
+        parse(Int, J_denominator) == 2 ||
+            throw(ArgumentError("Denominator not 2 in HalfInteger string '$s'."))
+        HalfInteger(parse(Int, J_numerator), 2)
+    elseif !isempty(strip(s))
+        HalfInteger(parse(Int, s))
+    else
+        throw(ArgumentError("input string is empty or only contains whitespace"))
+    end
+end
+
+Base.show(io::IO, x::HalfInteger) =
+    print(io, iseven(x.twofold) ? "$(div(x.twofold, 2))" : "$(x.twofold)/2")
+
 # Other methods
 
 Base.isinteger(a::HalfInteger) = iseven(a.twofold)

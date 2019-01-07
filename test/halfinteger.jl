@@ -62,6 +62,25 @@ using WignerSymbols: HalfInteger
         @test (-1) * b == HalfInteger(-3//2)
     end
 
+    @testset "Parsing and printing" begin
+        @test string(HalfInteger(0)) == "0"
+        @test string(HalfInteger(1)) == "1"
+        @test string(HalfInteger(-1)) == "-1"
+        @test string(HalfInteger(1, 2)) == "1/2"
+        @test string(HalfInteger(-3, 2)) == "-3/2"
+
+        # hi"" string macro / parse(::HalfInteger)
+        @test parse(HalfInteger, "0") == HalfInteger(0)
+        @test parse(HalfInteger, "1") == HalfInteger(1)
+        @test parse(HalfInteger, "210938") == HalfInteger(210938)
+        @test parse(HalfInteger, "-15") == HalfInteger(-15)
+        @test parse(HalfInteger, "1/2") == HalfInteger(1//2)
+        @test parse(HalfInteger, "-3/2") == HalfInteger(-3//2)
+        @test_throws ArgumentError parse(HalfInteger, "")
+        @test_throws ArgumentError parse(HalfInteger, "-50/100")
+        @test_throws ArgumentError parse(HalfInteger, "1/3")
+    end
+
     @testset "HalfInteger hashing" begin
         @test hash(a) == hash(2)
         @test hash(b) == hash(1.5)

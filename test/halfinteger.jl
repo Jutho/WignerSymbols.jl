@@ -1,5 +1,5 @@
 using Test
-using WignerSymbols: HalfInteger, ishalfinteger
+using WignerSymbols: HalfInteger, ishalfinteger, HalfIntegerRange
 
 @testset "HalfInteger" begin
     @testset "HalfInteger type" begin
@@ -110,5 +110,36 @@ using WignerSymbols: HalfInteger, ishalfinteger
         @test denominator(HalfInteger(1, 2)) == 2
         @test denominator(HalfInteger(1)) == 1
         @test denominator(HalfInteger(-3, 2)) == 2
+    end
+
+    @testset "HalfIntegerRange" begin
+        hi(x) = HalfInteger(x)
+
+        @test length(HalfIntegerRange(hi(0), hi(0))) == 1
+        @test length(HalfIntegerRange(hi(0), hi(2))) == 3
+        let hirange = HalfIntegerRange(hi(-1//2), hi(1//2))
+            @test length(hirange) == 2
+            @test size(hirange) == (2,)
+        end
+
+        @test hi(5):hi(7) == HalfIntegerRange(hi(5), hi(7))
+        @test hi(-1//2):hi(1//2) == HalfIntegerRange(hi(-1//2), hi(1//2))
+
+        @test collect(hi(0) : hi(2)) == [hi(0), hi(1), hi(2)]
+        @test collect(hi(-3//2) : hi(1//2)) == [hi(-3//2), hi(-1//2), hi(1//2)]
+
+        @test hi(1//2) ∈ hi(-1//2) : hi(1//2)
+        @test 1 ∈ hi(0) : hi(2)
+        @test 1//2 ∈ hi(-1//2) : hi(7//2)
+        @test !(hi(1//2) ∈ hi(0) : hi(1))
+        @test !(1//2 ∈ hi(-1) : hi(7))
+
+        r = hi(-3//2) : hi(3//2)
+        @test r[1] == hi(-3//2)
+        @test r[2] == hi(-1//2)
+        @test r[3] == hi(1//2)
+        @test r[4] == hi(3//2)
+        @test_throws BoundsError r[0]
+        @test_throws BoundsError r[5]
     end
 end

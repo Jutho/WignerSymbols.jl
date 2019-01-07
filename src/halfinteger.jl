@@ -119,3 +119,31 @@ converthalfinteger(a::Number) = convert(HalfInteger, a)
 
 Base.numerator(a::HalfInteger) = iseven(a.twofold) ? div(a.twofold, 2) : a.twofold
 Base.denominator(a::HalfInteger) = iseven(a.twofold) ? 1 : 2
+
+# Range of HalfIntegers
+
+struct HalfIntegerRange <: AbstractVector{HalfInteger}
+    start :: HalfInteger
+    stop :: HalfInteger
+
+    function HalfIntegerRange(start::HalfInteger, stop::HalfInteger)
+        (start <= stop) ||
+            throw(ArgumentError("Second argument must be greater or equal to the first."))
+        isinteger(stop - start) ||
+            throw(ArgumentError("Two arguments must have integer difference."))
+        return new(start, stop)
+    end
+end
+Base.iterate(it::HalfIntegerRange) = (it.start, it.start + 1)
+Base.iterate(it::HalfIntegerRange, s) = (s <= it.stop) ? (s, s+1) : nothing
+Base.length(it::HalfIntegerRange) = convert(Int, it.stop - it.start) + 1
+Base.size(it::HalfIntegerRange) = (length(it),)
+function Base.getindex(it::HalfIntegerRange, i::Integer)
+    1 <= i <= length(it) || throw(BoundsError(it, i))
+    it.start + i - 1
+end
+Base.IteratorEltype(::HalfIntegerRange) = Base.HasEltype()
+Base.eltype(::HalfIntegerRange) = HalfInteger
+Base.IteratorSize(::HalfIntegerRange) = Base.HasLength()
+
+Base.:(:)(i::HalfInteger, j::HalfInteger) = HalfIntegerRange(i, j)

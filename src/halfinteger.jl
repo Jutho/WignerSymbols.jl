@@ -1,12 +1,12 @@
 # HalfInteger
 struct HalfInteger <: Real
-    num::Int
+    twofold::Int
 end
-Base.:+(a::HalfInteger, b::HalfInteger) = HalfInteger(a.num+b.num)
-Base.:-(a::HalfInteger, b::HalfInteger) = HalfInteger(a.num-b.num)
-Base.:-(a::HalfInteger) = HalfInteger(-a.num)
-Base.:<=(a::HalfInteger, b::HalfInteger) = a.num <= b.num
-Base.:<(a::HalfInteger, b::HalfInteger) = a.num < b.num
+Base.:+(a::HalfInteger, b::HalfInteger) = HalfInteger(a.twofold+b.twofold)
+Base.:-(a::HalfInteger, b::HalfInteger) = HalfInteger(a.twofold-b.twofold)
+Base.:-(a::HalfInteger) = HalfInteger(-a.twofold)
+Base.:<=(a::HalfInteger, b::HalfInteger) = a.twofold <= b.twofold
+Base.:<(a::HalfInteger, b::HalfInteger) = a.twofold < b.twofold
 Base.one(::Type{HalfInteger}) = HalfInteger(2)
 Base.zero(::Type{HalfInteger}) = HalfInteger(0)
 
@@ -32,14 +32,14 @@ function Base.convert(::Type{HalfInteger}, r::Real)
         throw(InexactError(:HalfInteger, HalfInteger, r))
     end
 end
-Base.convert(T::Type{<:Integer}, s::HalfInteger) = iseven(s.num) ? convert(T, s.num>>1) : throw(InexactError(Symbol(T), T, s))
-Base.convert(T::Type{<:Rational}, s::HalfInteger) = convert(T, s.num//2)
-Base.convert(T::Type{<:Real}, s::HalfInteger) = convert(T, s.num/2)
+Base.convert(T::Type{<:Integer}, s::HalfInteger) = iseven(s.twofold) ? convert(T, s.twofold>>1) : throw(InexactError(Symbol(T), T, s))
+Base.convert(T::Type{<:Rational}, s::HalfInteger) = convert(T, s.twofold//2)
+Base.convert(T::Type{<:Real}, s::HalfInteger) = convert(T, s.twofold/2)
 Base.convert(::Type{HalfInteger}, s::HalfInteger) = s
 
 function Base.hash(a::HalfInteger, h::UInt)
-    iseven(a.num) && return hash(a.num>>1, h)
-    num, den = a.num, 2
+    iseven(a.twofold) && return hash(a.twofold>>1, h)
+    num, den = a.twofold, 2
     den = 1
     pow = -1
     if abs(num) < 9007199254740992
@@ -51,7 +51,7 @@ function Base.hash(a::HalfInteger, h::UInt)
     return h
 end
 
-Base.isinteger(a::HalfInteger) = iseven(a.num)
+Base.isinteger(a::HalfInteger) = iseven(a.twofold)
 ishalfinteger(a::HalfInteger) = true
 ishalfinteger(a::Integer) = true
 ishalfinteger(a::Rational) = a.den == 1 || a.den == 2

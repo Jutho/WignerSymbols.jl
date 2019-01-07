@@ -11,12 +11,16 @@ using WignerSymbols: HalfInteger
         @test HalfInteger(0, 5).twofold == 0
         @test HalfInteger(10, 5).twofold == 4
         @test HalfInteger(21, 14).twofold == 3
+        @test HalfInteger(-3, 2).twofold == -3
+        @test HalfInteger(3, -2).twofold == -3
+        @test HalfInteger(-3, -2).twofold == 3
         @test_throws ArgumentError HalfInteger(1, 0)
         @test_throws ArgumentError HalfInteger(1, 3)
         @test_throws ArgumentError HalfInteger(1, -3)
         @test_throws ArgumentError HalfInteger(-5, 3)
         @test_throws ArgumentError HalfInteger(-1000, -999)
 
+        # convert methods
         @test convert(HalfInteger, 2) == HalfInteger(2, 1)
         @test convert(HalfInteger, 1//2) == HalfInteger(1, 2)
         @test convert(HalfInteger, 1.5) == HalfInteger(3, 2)
@@ -26,6 +30,15 @@ using WignerSymbols: HalfInteger
         @test convert(HalfInteger, 1//2) == 1//2
         @test convert(HalfInteger, 1.5) == 1.5
         @test_throws InexactError convert(Integer, HalfInteger(1, 2))
+
+        # single-argument constructor
+        @test HalfInteger(0) == HalfInteger(0, 2)
+        @test HalfInteger(1) == HalfInteger(1, 1)
+        @test HalfInteger(2) == HalfInteger(2, 1)
+        @test HalfInteger(-30) == HalfInteger(-60, 2)
+        @test HalfInteger(0//2) == HalfInteger(0, 1)
+        @test HalfInteger(1//2) == HalfInteger(1, 2)
+        @test HalfInteger(-5//2) == HalfInteger(-5, 2)
     end
 
     a = HalfInteger(2)

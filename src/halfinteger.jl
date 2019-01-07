@@ -28,14 +28,6 @@ struct HalfInteger <: Real
 end
 HalfInteger(x::Real) = convert(HalfInteger, x)
 
-Base.:+(a::HalfInteger, b::HalfInteger) = HalfInteger(a.twofold+b.twofold, 2)
-Base.:-(a::HalfInteger, b::HalfInteger) = HalfInteger(a.twofold-b.twofold, 2)
-Base.:-(a::HalfInteger) = HalfInteger(-a.twofold, 2)
-Base.:<=(a::HalfInteger, b::HalfInteger) = a.twofold <= b.twofold
-Base.:<(a::HalfInteger, b::HalfInteger) = a.twofold < b.twofold
-Base.one(::Type{HalfInteger}) = HalfInteger(2, 2)
-Base.zero(::Type{HalfInteger}) = HalfInteger(0, 2)
-
 Base.promote_rule(::Type{HalfInteger}, ::Type{<:Integer}) = HalfInteger
 Base.promote_rule(::Type{HalfInteger}, T::Type{<:Rational}) = T
 Base.promote_rule(::Type{HalfInteger}, T::Type{<:Real}) = T
@@ -63,6 +55,18 @@ Base.convert(T::Type{<:Rational}, s::HalfInteger) = convert(T, s.twofold//2)
 Base.convert(T::Type{<:Real}, s::HalfInteger) = convert(T, s.twofold/2)
 Base.convert(::Type{HalfInteger}, s::HalfInteger) = s
 
+# Arithmetic
+
+Base.:+(a::HalfInteger, b::HalfInteger) = HalfInteger(a.twofold+b.twofold, 2)
+Base.:-(a::HalfInteger, b::HalfInteger) = HalfInteger(a.twofold-b.twofold, 2)
+Base.:-(a::HalfInteger) = HalfInteger(-a.twofold, 2)
+Base.:<=(a::HalfInteger, b::HalfInteger) = a.twofold <= b.twofold
+Base.:<(a::HalfInteger, b::HalfInteger) = a.twofold < b.twofold
+Base.one(::Type{HalfInteger}) = HalfInteger(2, 2)
+Base.zero(::Type{HalfInteger}) = HalfInteger(0, 2)
+
+# Hashing
+
 function Base.hash(a::HalfInteger, h::UInt)
     iseven(a.twofold) && return hash(a.twofold>>1, h)
     num, den = a.twofold, 2
@@ -76,6 +80,8 @@ function Base.hash(a::HalfInteger, h::UInt)
     h = Base.hash_integer(num, h)
     return h
 end
+
+# Other methods
 
 Base.isinteger(a::HalfInteger) = iseven(a.twofold)
 ishalfinteger(a::HalfInteger) = true

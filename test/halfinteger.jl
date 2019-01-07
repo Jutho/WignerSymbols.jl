@@ -1,5 +1,5 @@
 using Test
-using WignerSymbols: HalfInteger
+using WignerSymbols: HalfInteger, ishalfinteger
 
 @testset "HalfInteger" begin
     @testset "HalfInteger type" begin
@@ -84,5 +84,31 @@ using WignerSymbols: HalfInteger
     @testset "HalfInteger hashing" begin
         @test hash(a) == hash(2)
         @test hash(b) == hash(1.5)
+    end
+
+    @testset "Other HalfInteger methods" begin
+        @test isinteger(HalfInteger(0))
+        @test isinteger(HalfInteger(1))
+        @test !isinteger(HalfInteger(1, 2))
+
+        @test ishalfinteger(1)
+        @test ishalfinteger(1.0)
+        @test ishalfinteger(-0.5)
+        @test ishalfinteger(HalfInteger(0))
+        @test ishalfinteger(HalfInteger(1, 2))
+        @test ishalfinteger(1//1)
+        @test ishalfinteger(1//2)
+        @test !ishalfinteger(0.3)
+        @test !ishalfinteger(-5//7)
+
+        @test numerator(HalfInteger(0)) == 0
+        @test numerator(HalfInteger(1, 2)) == 1
+        @test numerator(HalfInteger(1)) == 1
+        @test numerator(HalfInteger(-3, 2)) == -3
+
+        @test denominator(HalfInteger(0)) == 1
+        @test denominator(HalfInteger(1, 2)) == 2
+        @test denominator(HalfInteger(1)) == 1
+        @test denominator(HalfInteger(-3, 2)) == 2
     end
 end

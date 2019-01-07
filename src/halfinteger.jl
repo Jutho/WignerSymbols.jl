@@ -116,3 +116,6 @@ ishalfinteger(a::Rational) = a.den == 1 || a.den == 2
 ishalfinteger(a::Real) = isinteger(2*a)
 
 converthalfinteger(a::Number) = convert(HalfInteger, a)
+
+Base.numerator(a::HalfInteger) = iseven(a.twofold) ? div(a.twofold, 2) : a.twofold
+Base.denominator(a::HalfInteger) = iseven(a.twofold) ? 1 : 2

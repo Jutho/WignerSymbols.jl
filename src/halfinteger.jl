@@ -60,6 +60,8 @@ Base.convert(::Type{HalfInteger}, s::HalfInteger) = s
 Base.:+(a::HalfInteger, b::HalfInteger) = HalfInteger(a.twofold+b.twofold, 2)
 Base.:-(a::HalfInteger, b::HalfInteger) = HalfInteger(a.twofold-b.twofold, 2)
 Base.:-(a::HalfInteger) = HalfInteger(-a.twofold, 2)
+Base.:*(a::Integer, b::HalfInteger) = HalfInteger(a * b.twofold, 2)
+Base.:*(a::HalfInteger, b::Integer) = b * a
 Base.:<=(a::HalfInteger, b::HalfInteger) = a.twofold <= b.twofold
 Base.:<(a::HalfInteger, b::HalfInteger) = a.twofold < b.twofold
 Base.one(::Type{HalfInteger}) = HalfInteger(2, 2)

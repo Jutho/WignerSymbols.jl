@@ -55,6 +55,11 @@ using WignerSymbols: HalfInteger
         @test a >= b
         @test a == a
         @test a != b
+        @test 2 * HalfInteger(0) == HalfInteger(0)
+        @test 2 * HalfInteger(1, 2) == HalfInteger(1)
+        @test HalfInteger(1) * 2 == HalfInteger(2)
+        @test 2 * a == HalfInteger(4)
+        @test (-1) * b == HalfInteger(-3//2)
     end
 
     @testset "HalfInteger hashing" begin

@@ -4,16 +4,16 @@ using WignerSymbols: HalfInteger, ishalfinteger, HalfIntegerRange
 @testset "HalfInteger" begin
     @testset "HalfInteger type" begin
         # HalfInteger constructors
-        @test HalfInteger(1, 2).twofold == 1
-        @test HalfInteger(1, 1).twofold == 2
-        @test HalfInteger(0, 1).twofold == 0
-        @test HalfInteger(0, 2).twofold == 0
-        @test HalfInteger(0, 5).twofold == 0
-        @test HalfInteger(10, 5).twofold == 4
-        @test HalfInteger(21, 14).twofold == 3
-        @test HalfInteger(-3, 2).twofold == -3
-        @test HalfInteger(3, -2).twofold == -3
-        @test HalfInteger(-3, -2).twofold == 3
+        @test HalfInteger(1, 2).numerator == 1
+        @test HalfInteger(1, 1).numerator == 2
+        @test HalfInteger(0, 1).numerator == 0
+        @test HalfInteger(0, 2).numerator == 0
+        @test HalfInteger(0, 5).numerator == 0
+        @test HalfInteger(10, 5).numerator == 4
+        @test HalfInteger(21, 14).numerator == 3
+        @test HalfInteger(-3, 2).numerator == -3
+        @test HalfInteger(3, -2).numerator == -3
+        @test HalfInteger(-3, -2).numerator == 3
         @test_throws ArgumentError HalfInteger(1, 0)
         @test_throws ArgumentError HalfInteger(1, 3)
         @test_throws ArgumentError HalfInteger(1, -3)

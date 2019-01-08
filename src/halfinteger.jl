@@ -5,7 +5,7 @@
 Represents half-integer values.
 """
 struct HalfInteger <: Real
-    twofold::Int
+    numerator::Int # with an implicit denominator of 2
 
     """
         HalfInteger(numerator::Integer, denominator::Integer)
@@ -18,9 +18,9 @@ struct HalfInteger <: Real
         (den == 1) && return new(2*num)
         (den == 0) && throw(ArgumentError("Denominator can not be zero."))
         # If non-trivial, we'll see if we can reduce it down to a half-integer
-        twofold, r = divrem(2*num, den)
+        numerator, r = divrem(2*num, den)
         if r == 0
-            return new(twofold)
+            return new(numerator)
         else
             throw(ArgumentError("$num // $den is not a half-integer value."))
         end
@@ -50,28 +50,28 @@ function Base.convert(::Type{HalfInteger}, r::Real)
         throw(InexactError(:HalfInteger, HalfInteger, r))
     end
 end
-Base.convert(T::Type{<:Integer}, s::HalfInteger) = iseven(s.twofold) ? convert(T, s.twofold>>1) : throw(InexactError(Symbol(T), T, s))
-Base.convert(T::Type{<:Rational}, s::HalfInteger) = convert(T, s.twofold//2)
-Base.convert(T::Type{<:Real}, s::HalfInteger) = convert(T, s.twofold/2)
+Base.convert(T::Type{<:Integer}, s::HalfInteger) = iseven(s.numerator) ? convert(T, s.numerator>>1) : throw(InexactError(Symbol(T), T, s))
+Base.convert(T::Type{<:Rational}, s::HalfInteger) = convert(T, s.numerator//2)
+Base.convert(T::Type{<:Real}, s::HalfInteger) = convert(T, s.numerator/2)
 Base.convert(::Type{HalfInteger}, s::HalfInteger) = s
 
 # Arithmetic
 
-Base.:+(a::HalfInteger, b::HalfInteger) = HalfInteger(a.twofold+b.twofold, 2)
-Base.:-(a::HalfInteger, b::HalfInteger) = HalfInteger(a.twofold-b.twofold, 2)
-Base.:-(a::HalfInteger) = HalfInteger(-a.twofold, 2)
-Base.:*(a::Integer, b::HalfInteger) = HalfInteger(a * b.twofold, 2)
+Base.:+(a::HalfInteger, b::HalfInteger) = HalfInteger(a.numerator+b.numerator, 2)
+Base.:-(a::HalfInteger, b::HalfInteger) = HalfInteger(a.numerator-b.numerator, 2)
+Base.:-(a::HalfInteger) = HalfInteger(-a.numerator, 2)
+Base.:*(a::Integer, b::HalfInteger) = HalfInteger(a * b.numerator, 2)
 Base.:*(a::HalfInteger, b::Integer) = b * a
-Base.:<=(a::HalfInteger, b::HalfInteger) = a.twofold <= b.twofold
-Base.:<(a::HalfInteger, b::HalfInteger) = a.twofold < b.twofold
+Base.:<=(a::HalfInteger, b::HalfInteger) = a.numerator <= b.numerator
+Base.:<(a::HalfInteger, b::HalfInteger) = a.numerator < b.numerator
 Base.one(::Type{HalfInteger}) = HalfInteger(2, 2)
 Base.zero(::Type{HalfInteger}) = HalfInteger(0, 2)
 
 # Hashing
 
 function Base.hash(a::HalfInteger, h::UInt)
-    iseven(a.twofold) && return hash(a.twofold>>1, h)
-    num, den = a.twofold, 2
+    iseven(a.numerator) && return hash(a.numerator>>1, h)
+    num, den = a.numerator, 2
     den = 1
     pow = -1
     if abs(num) < 9007199254740992
@@ -93,10 +93,10 @@ number or a fraction of the form `<x>/2`.
 """
 function Base.parse(::Type{HalfInteger}, s::AbstractString)
     if in('/', s)
-        J_numerator, J_denominator = split(s, '/'; limit=2)
-        parse(Int, J_denominator) == 2 ||
+        num, den = split(s, '/'; limit=2)
+        parse(Int, den) == 2 ||
             throw(ArgumentError("Denominator not 2 in HalfInteger string '$s'."))
-        HalfInteger(parse(Int, J_numerator), 2)
+        HalfInteger(parse(Int, num), 2)
     elseif !isempty(strip(s))
         HalfInteger(parse(Int, s))
     else
@@ -105,11 +105,11 @@ function Base.parse(::Type{HalfInteger}, s::AbstractString)
 end
 
 Base.show(io::IO, x::HalfInteger) =
-    print(io, iseven(x.twofold) ? "$(div(x.twofold, 2))" : "$(x.twofold)/2")
+    print(io, iseven(x.numerator) ? "$(div(x.numerator, 2))" : "$(x.numerator)/2")
 
 # Other methods
 
-Base.isinteger(a::HalfInteger) = iseven(a.twofold)
+Base.isinteger(a::HalfInteger) = iseven(a.numerator)
 ishalfinteger(a::HalfInteger) = true
 ishalfinteger(a::Integer) = true
 ishalfinteger(a::Rational) = a.den == 1 || a.den == 2
@@ -117,8 +117,8 @@ ishalfinteger(a::Real) = isinteger(2*a)
 
 converthalfinteger(a::Number) = convert(HalfInteger, a)
 
-Base.numerator(a::HalfInteger) = iseven(a.twofold) ? div(a.twofold, 2) : a.twofold
-Base.denominator(a::HalfInteger) = iseven(a.twofold) ? 1 : 2
+Base.numerator(a::HalfInteger) = iseven(a.numerator) ? div(a.numerator, 2) : a.numerator
+Base.denominator(a::HalfInteger) = iseven(a.numerator) ? 1 : 2
 
 # Range of HalfIntegers
 
@@ -142,8 +142,5 @@ function Base.getindex(it::HalfIntegerRange, i::Integer)
     1 <= i <= length(it) || throw(BoundsError(it, i))
     it.start + i - 1
 end
-Base.IteratorEltype(::HalfIntegerRange) = Base.HasEltype()
-Base.eltype(::HalfIntegerRange) = HalfInteger
-Base.IteratorSize(::HalfIntegerRange) = Base.HasLength()
 
 Base.:(:)(i::HalfInteger, j::HalfInteger) = HalfIntegerRange(i, j)

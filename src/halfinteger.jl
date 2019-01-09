@@ -1,18 +1,30 @@
 # HalfInteger
+
 """
     struct HalfInteger <: Real
 
 Represents half-integer values.
+
+---
+
+HalfInteger(numerator::Integer, denominator::Integer)
+
+Constructs a `HalfInteger` object as a rational number from the given integer numerator
+and denominator values.
+
+# Examples
+
+```jldoctest
+julia> HalfInteger(1, 2)
+1/2
+
+julia> HalfInteger(-2, 1)
+-2
+```
 """
 struct HalfInteger <: Real
     numerator::Int # with an implicit denominator of 2
 
-    """
-        HalfInteger(numerator::Integer, denominator::Integer)
-
-    Constructs a `HalfInteger` object as a rational number from the given integer numerator
-    and denominator values.
-    """
     function HalfInteger(num::Integer, den::Integer)
         (den == 2) && return new(num)
         (den == 1) && return new(2*num)
@@ -26,6 +38,23 @@ struct HalfInteger <: Real
         end
     end
 end
+
+"""
+    HalfInteger(x::Real)
+
+Attempts to create a `HalfInteger` out of the real number `x`. Throws an `InexactError` if
+`x` can not be represented as a half-integer value.
+
+# Examples
+
+```jldoctest
+julia> HalfInteger(3)
+3
+
+julia> HalfInteger(1.5)
+3/2
+```
+"""
 HalfInteger(x::Real) = convert(HalfInteger, x)
 
 Base.promote_rule(::Type{HalfInteger}, ::Type{<:Integer}) = HalfInteger
@@ -70,6 +99,9 @@ Base.zero(::Type{HalfInteger}) = HalfInteger(0, 2)
 Base.floor(x::HalfInteger) = isinteger(x) ? x : x - HalfInteger(1, 2)
 Base.floor(::Type{T}, x::HalfInteger) where T <: Integer = convert(T, floor(x))
 
+Base.ceil(x::HalfInteger) = isinteger(x) ? x : x + HalfInteger(1, 2)
+Base.ceil(::Type{T}, x::HalfInteger) where T <: Integer = convert(T, ceil(x))
+
 # Hashing
 
 function Base.hash(a::HalfInteger, h::UInt)
@@ -92,7 +124,7 @@ end
     parse(HalfInteger, s)
 
 Parses the string `s` into the corresponding `HalfInteger`-value. String can either be a
-number or a fraction of the form `<x>/2`.
+number or a fraction of the form `n/2`.
 """
 function Base.parse(::Type{HalfInteger}, s::AbstractString)
     if in('/', s)
@@ -125,6 +157,12 @@ Base.denominator(a::HalfInteger) = iseven(a.numerator) ? 1 : 2
 
 # Range of HalfIntegers
 
+"""
+    struct HalfIntegerRange <: AbstractVector{HalfInteger}
+
+A range of `HalfInteger` values from `start` to `stop`, spaced by `1`. The `a:b` syntax
+where both `a` and `b` are `HalfInteger`s can also be use to construct this range.
+"""
 struct HalfIntegerRange <: AbstractVector{HalfInteger}
     start :: HalfInteger
     stop :: HalfInteger
@@ -144,4 +182,9 @@ function Base.getindex(it::HalfIntegerRange, i::Integer)
     it.start + i - 1
 end
 
+"""
+    (:)(i::HalfInteger, j::HalfInteger)
+
+Constructs a `HalfIntegerRange` out of two `HalfInteger` values.
+"""
 Base.:(:)(i::HalfInteger, j::HalfInteger) = HalfIntegerRange(i, j)

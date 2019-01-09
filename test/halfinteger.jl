@@ -62,19 +62,31 @@ using WignerSymbols: HalfInteger, ishalfinteger, HalfIntegerRange
         @test (-1) * b == HalfInteger(-3//2)
 
         @test floor(HalfInteger(0)) === HalfInteger(0)
+        @test floor(HalfInteger(-1)) === HalfInteger(-1)
         @test floor(HalfInteger(1, 2)) === HalfInteger(0)
         @test floor(HalfInteger(-1, 2)) === HalfInteger(-1)
-        @test floor(HalfInteger(-1)) === HalfInteger(-1)
-        @test floor(HalfInteger(1)) === HalfInteger(1)
-        @test floor(HalfInteger(5, 2)) === HalfInteger(2)
-        @test floor(HalfInteger(-5, 2)) === HalfInteger(-3)
-        @test floor(HalfInteger(-5)) === HalfInteger(-5)
-        @test floor(HalfInteger(5)) === HalfInteger(5)
-
         @test floor(Int, HalfInteger(0)) === 0
         @test floor(Int, HalfInteger(1, 2)) === 0
         @test floor(Int32, HalfInteger(-5, 2)) === Int32(-3)
         @test floor(Int32, HalfInteger(5)) === Int32(5)
+
+        @test ceil(HalfInteger(0)) === HalfInteger(0)
+        @test ceil(HalfInteger(-1)) === HalfInteger(-1)
+        @test ceil(HalfInteger(1, 2)) === HalfInteger(1)
+        @test ceil(HalfInteger(-1, 2)) === HalfInteger(0)
+        @test ceil(Int, HalfInteger(0)) === 0
+        @test ceil(Int, HalfInteger(1, 2)) === 1
+        @test ceil(Int32, HalfInteger(-5, 2)) === Int32(-2)
+        @test ceil(Int32, HalfInteger(5)) === Int32(5)
+
+        for n in -98:7:98
+            halfint, rat = HalfInteger(n, 2), n // 2
+            @test halfint == rat
+            @test halfint == HalfInteger(n / 2)
+            iseven(n) && @test halfint == HalfInteger(div(n, 2))
+            @test ceil(halfint) == ceil(rat)
+            @test floor(halfint) == floor(rat)
+        end
     end
 
     @testset "Parsing and printing" begin
@@ -84,7 +96,6 @@ using WignerSymbols: HalfInteger, ishalfinteger, HalfIntegerRange
         @test string(HalfInteger(1, 2)) == "1/2"
         @test string(HalfInteger(-3, 2)) == "-3/2"
 
-        # hi"" string macro / parse(::HalfInteger)
         @test parse(HalfInteger, "0") == HalfInteger(0)
         @test parse(HalfInteger, "1") == HalfInteger(1)
         @test parse(HalfInteger, "210938") == HalfInteger(210938)

@@ -67,6 +67,9 @@ Base.:<(a::HalfInteger, b::HalfInteger) = a.numerator < b.numerator
 Base.one(::Type{HalfInteger}) = HalfInteger(2, 2)
 Base.zero(::Type{HalfInteger}) = HalfInteger(0, 2)
 
+Base.floor(x::HalfInteger) = isinteger(x) ? x : x - HalfInteger(1, 2)
+Base.floor(::Type{T}, x::HalfInteger) where T <: Integer = convert(T, floor(x))
+
 # Hashing
 
 function Base.hash(a::HalfInteger, h::UInt)
@@ -129,14 +132,12 @@ struct HalfIntegerRange <: AbstractVector{HalfInteger}
     function HalfIntegerRange(start::HalfInteger, stop::HalfInteger)
         (start <= stop) ||
             throw(ArgumentError("Second argument must be greater or equal to the first."))
-        isinteger(stop - start) ||
-            throw(ArgumentError("Two arguments must have integer difference."))
         return new(start, stop)
     end
 end
 Base.iterate(it::HalfIntegerRange) = (it.start, it.start + 1)
 Base.iterate(it::HalfIntegerRange, s) = (s <= it.stop) ? (s, s+1) : nothing
-Base.length(it::HalfIntegerRange) = convert(Int, it.stop - it.start) + 1
+Base.length(it::HalfIntegerRange) = floor(Int, it.stop - it.start) + 1
 Base.size(it::HalfIntegerRange) = (length(it),)
 function Base.getindex(it::HalfIntegerRange, i::Integer)
     1 <= i <= length(it) || throw(BoundsError(it, i))

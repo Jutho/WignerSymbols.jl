@@ -60,6 +60,21 @@ using WignerSymbols: HalfInteger, ishalfinteger, HalfIntegerRange
         @test HalfInteger(1) * 2 == HalfInteger(2)
         @test 2 * a == HalfInteger(4)
         @test (-1) * b == HalfInteger(-3//2)
+
+        @test floor(HalfInteger(0)) === HalfInteger(0)
+        @test floor(HalfInteger(1, 2)) === HalfInteger(0)
+        @test floor(HalfInteger(-1, 2)) === HalfInteger(-1)
+        @test floor(HalfInteger(-1)) === HalfInteger(-1)
+        @test floor(HalfInteger(1)) === HalfInteger(1)
+        @test floor(HalfInteger(5, 2)) === HalfInteger(2)
+        @test floor(HalfInteger(-5, 2)) === HalfInteger(-3)
+        @test floor(HalfInteger(-5)) === HalfInteger(-5)
+        @test floor(HalfInteger(5)) === HalfInteger(5)
+
+        @test floor(Int, HalfInteger(0)) === 0
+        @test floor(Int, HalfInteger(1, 2)) === 0
+        @test floor(Int32, HalfInteger(-5, 2)) === Int32(-3)
+        @test floor(Int32, HalfInteger(5)) === Int32(5)
     end
 
     @testset "Parsing and printing" begin
@@ -120,6 +135,17 @@ using WignerSymbols: HalfInteger, ishalfinteger, HalfIntegerRange
         let hirange = HalfIntegerRange(hi(-1//2), hi(1//2))
             @test length(hirange) == 2
             @test size(hirange) == (2,)
+            @test collect(hirange) == [hi(-1//2), hi(1//2)]
+        end
+        let hirange = HalfIntegerRange(hi(0), hi(1//2))
+            @test length(hirange) == 1
+            @test size(hirange) == (1,)
+            @test collect(hirange) == [hi(0)]
+        end
+        let hirange = HalfIntegerRange(hi(1//2), hi(3))
+            @test length(hirange) == 3
+            @test size(hirange) == (3,)
+            @test collect(hirange) == [hi(1//2), hi(3//2), hi(5//2)]
         end
 
         @test hi(5):hi(7) == HalfIntegerRange(hi(5), hi(7))
@@ -127,6 +153,12 @@ using WignerSymbols: HalfInteger, ishalfinteger, HalfIntegerRange
 
         @test collect(hi(0) : hi(2)) == [hi(0), hi(1), hi(2)]
         @test collect(hi(-3//2) : hi(1//2)) == [hi(-3//2), hi(-1//2), hi(1//2)]
+
+        let hirange = hi(-3//2):hi(0)
+            @test length(hirange) == 2
+            @test size(hirange) == (2,)
+            @test collect(hirange) == [hi(-3//2), hi(-1//2)]
+        end
 
         @test hi(1//2) ∈ hi(-1//2) : hi(1//2)
         @test 1 ∈ hi(0) : hi(2)

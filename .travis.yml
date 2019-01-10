@@ -6,13 +6,17 @@ os:
 julia:
   - 0.7
   - 1.0
+  - 1.1
   - nightly
+notifications:
+  email: false
+
 matrix:
   allow_failures:
-    - julia: nightly
-notifications:
-    email: false
+  - julia: nightly
+
+## uncomment the following lines to override the default test script
 
 after_success:
-  # push coverage results to Coveralls
-  - julia -e 'using Pkg; Pkg.add("WignerSymbols"); using Coverage; Codecov.submit(Codecov.process_folder()); Coveralls.submit(Coveralls.process_folder());'
+  # push coverage results to Codecov and Coveralls
+  - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder()); Coveralls.submit(Coveralls.process_folder())'

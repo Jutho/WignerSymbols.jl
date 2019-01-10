@@ -27,8 +27,7 @@ While the following function signatures are probably self-explanatory, you can q
 *   `δ(j₁, j₂, j₃) -> ::Bool`
 *   `Δ(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃) -> ::T`
 
-The package also defines the `HalfInteger` type that can be used to represent half-integer values.
-Furthermore, the range operator `a:b` can be used to create ranges of `HalfInteger` values (a `HalfIntegerRange`).
+The package also defines the `HalfInteger` type that can be used to represent half-integer values. Construct if as `HalfInteger(a::Real)` or `HalfInteger(numerator::Integer, denominator::Integer)`. Furthermore, the range operator `a:b` can be used to create ranges of `HalfInteger` values (a `HalfIntegerRange`).
 
 ## Implementation
 Largely based on reading the paper (but not the code):

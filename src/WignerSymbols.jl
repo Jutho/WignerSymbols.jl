@@ -1,6 +1,6 @@
 __precompile__(true)
 module WignerSymbols
-export δ, Δ, clebschgordan, wigner3j, wigner6j, racahV, racahW
+export δ, Δ, clebschgordan, wigner3j, wigner6j, racahV, racahW, HalfInteger
 
 using Base.GMP.MPZ
 

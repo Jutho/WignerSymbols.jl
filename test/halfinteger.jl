@@ -21,15 +21,21 @@ using WignerSymbols: HalfInteger, ishalfinteger, HalfIntegerRange
         @test_throws ArgumentError HalfInteger(-1000, -999)
 
         # convert methods
-        @test convert(HalfInteger, 2) == HalfInteger(2, 1)
-        @test convert(HalfInteger, 1//2) == HalfInteger(1, 2)
-        @test convert(HalfInteger, 1.5) == HalfInteger(3, 2)
+        @test convert(HalfInteger, 2) === HalfInteger(2, 1)
+        @test convert(HalfInteger, 1//2) === HalfInteger(1, 2)
+        @test convert(HalfInteger, 1.5) === HalfInteger(3, 2)
         @test_throws InexactError convert(HalfInteger, 1//3)
         @test_throws InexactError convert(HalfInteger, 0.6)
-        @test convert(HalfInteger, 2) == 2
-        @test convert(HalfInteger, 1//2) == 1//2
-        @test convert(HalfInteger, 1.5) == 1.5
+        @test convert(HalfInteger, 2) === HalfInteger(2, 1)
+        @test convert(HalfInteger, 1//2) === HalfInteger(1, 2)
+        @test convert(HalfInteger, 1.5) === HalfInteger(3, 2)
+
+        @test convert(Integer, HalfInteger(2, 1)) === 2
         @test_throws InexactError convert(Integer, HalfInteger(1, 2))
+        @test convert(Float64, HalfInteger(3, 2)) isa Float64
+        @test convert(Float32, HalfInteger(3, 2)) isa Float32
+        @test convert(Float64, HalfInteger(3, 2)) == 1.5
+        @test convert(Real, HalfInteger(3, 2)) === HalfInteger(3, 2)
 
         # single-argument constructor
         @test HalfInteger(0) == HalfInteger(0, 2)

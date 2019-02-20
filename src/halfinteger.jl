@@ -81,7 +81,7 @@ function Base.convert(::Type{HalfInteger}, r::Real)
 end
 Base.convert(T::Type{<:Integer}, s::HalfInteger) = iseven(s.numerator) ? convert(T, s.numerator>>1) : throw(InexactError(Symbol(T), T, s))
 Base.convert(T::Type{<:Rational}, s::HalfInteger) = convert(T, s.numerator//2)
-Base.convert(T::Type{<:Real}, s::HalfInteger) = convert(T, s.numerator/2)
+Base.convert(T::Type{<:AbstractFloat}, s::HalfInteger) = convert(T, s.numerator) / T(2)
 Base.convert(::Type{HalfInteger}, s::HalfInteger) = s
 
 # Arithmetic

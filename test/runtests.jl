@@ -1,8 +1,9 @@
 using Test
 using WignerSymbols
 using LinearAlgebra
+using Random
 
-#include("halfinteger.jl")
+Random.seed!(1234)
 
 smalljlist = 0:1//2:10
 largejlist = 0:1//2:1000

@@ -3,8 +3,9 @@ module WignerSymbols
 export δ, Δ, clebschgordan, wigner3j, wigner6j, racahV, racahW, HalfInteger
 
 using Base.GMP.MPZ
+using HalfIntegers
 
-include("halfinteger.jl")
+#include("halfinteger.jl")
 include("primefactorization.jl")
 
 const Wigner3j = Dict{Tuple{UInt,UInt,UInt,Int,Int},Tuple{Rational{BigInt},Rational{BigInt}}}()
@@ -29,13 +30,7 @@ end
 
 Checks the triangle conditions `j₃ <= j₁ + j₂`, `j₁ <= j₂ + j₃` and `j₂ <= j₃ + j₁`.
 """
-function δ(j₁, j₂, j₃)
-    j₃ <= j₁ + j₂ || return false
-    j₁ <= j₂ + j₃ || return false
-    j₂ <= j₃ + j₁ || return false
-    isinteger(j₁+j₂+j₃) || return false
-    return true
-end
+δ(j₁, j₂, j₃) = (j₃ <= j₁ + j₂) && (j₁ <= j₂ + j₃) && (j₂ <= j₃ + j₁) && isinteger(j₁+j₂+j₃)
 
 # triangle coefficient
 """
@@ -51,7 +46,7 @@ throws a `DomainError` if the `jᵢ`s are not (half)integer
 Δ(j₁, j₂, j₃) = Δ(Float64, j₁, j₂, j₃)
 function Δ(T::Type{<:AbstractFloat}, j₁, j₂, j₃)
     for jᵢ in (j₁, j₂, j₃)
-        (ishalfinteger(jᵢ) && jᵢ >= 0) || throw(DomainError("invalid jᵢ", jᵢ))
+        (ishalfinteger(jᵢ) && jᵢ >= zero(jᵢ)) || throw(DomainError("invalid jᵢ", jᵢ))
     end
     if !δ(j₁, j₂, j₃)
         return zero(T)
@@ -109,7 +104,8 @@ function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ =
         Wigner3j[(β₁, β₂, β₃, α₁, α₂)] = (r,s)
     end
 
-    return sgn*sqrt(convert(T, r.num)/convert(T, r.den))*(convert(T, s.num)/convert(T, s.den))
+    sn, sd, rn, rd = convert.(T, (s.num, s.den, r.num, r.den))
+    return sgn*(sn/sd)*sqrt(rn/rd)
 end
 
 """
@@ -121,7 +117,8 @@ as a type `T` floating point number. By default, `T = Float64` and `m₃ = m₁+
 Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
 throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
 """
-clebschgordan(j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) = clebschgordan(Float64, j₁, m₁, j₂, m₂, j₃, m₃)
+clebschgordan(j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) =
+    clebschgordan(Float64, j₁, m₁, j₂, m₂, j₃, m₃)
 function clebschgordan(T::Type{<:AbstractFloat}, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂)
     s = wigner3j(T, j₁, j₂, j₃, m₁, m₂, -m₃)
     iszero(s) && return s
@@ -162,13 +159,13 @@ wigner6j(j₁, j₂, j₃, j₄, j₅, j₆) = wigner6j(Float64, j₁, j₂, j�
 function wigner6j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, j₄, j₅, j₆)
     # check validity of `jᵢ`s
     for jᵢ in (j₁, j₂, j₃, j₄, j₅, j₆)
-        (ishalfinteger(jᵢ) && jᵢ >= 0) || throw(DomainError("invalid jᵢ", jᵢ))
+        (ishalfinteger(jᵢ) && jᵢ >= zero(jᵢ)) || throw(DomainError("invalid jᵢ", jᵢ))
     end
 
-    α̂₁ = map(converthalfinteger, (j₁, j₂, j₃))
-    α̂₂ = map(converthalfinteger, (j₁, j₆, j₅))
-    α̂₃ = map(converthalfinteger, (j₂, j₄, j₆))
-    α̂₄ = map(converthalfinteger, (j₃, j₄, j₅))
+    α̂₁ = (j₁, j₂, j₃)
+    α̂₂ = (j₁, j₆, j₅)
+    α̂₃ = (j₂, j₄, j₆)
+    α̂₄ = (j₃, j₄, j₅)
 
     # check triangle conditions
     if !(δ(α̂₁...) && δ(α̂₂...) && δ(α̂₃...) && δ(α̂₄...))
@@ -206,7 +203,8 @@ function wigner6j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, j₄, j₅, j₆)
         Wigner6j[(β₁, β₂, β₃, α₁, α₂, α₃)] = (r, s)
     end
 
-    return sqrt(convert(T, r.num)/convert(T, r.den))*(convert(T, s.num)/convert(T, s.den))
+    sn, sd, rn, rd = convert.(T, (s.num, s.den, r.num, r.den))
+    return (sn/sd)*sqrt(rn/rd)
 end
 
 """

@@ -1,0 +1,18 @@
+name = "WignerSymbols"
+uuid = "9f57e263-0b3d-5e2e-b1be-24f2bb48858b"
+authors = ["Jutho Haegeman"]
+version = "1.0.0"
+
+[deps]
+HalfIntegers = "f0d1745a-41c9-11e9-1dd9-e5d34d218721"
+Primes = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
+
+[compat]
+julia = "1"
+
+[extras]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test", "LinearAlgebra"]

@@ -1,8 +1,9 @@
 using Test
 using WignerSymbols
 using LinearAlgebra
+using Random
 
-include("halfinteger.jl")
+Random.seed!(1234)
 
 smalljlist = 0:1//2:10
 largejlist = 0:1//2:1000
@@ -99,8 +100,9 @@ end
             Y = (2*j+1)*( j*(j+1)*( -j*(j+1) + j2*(j2+1) + j3*(j3+1) - 2*l1*(l1+1)) +
                             l2*(l2+1)*( j*(j+1) + j2*(j2+1) - j3*(j3+1) ) +
                             l3*(l3+1)*( j*(j+1) - j2*(j2+1) + j3*(j3+1) ) )
-            Z = (j+1)*sqrt((j^2-(j2-j3)^2)*((j2+j3+1)^2-j^2)*(j^2-(l2-l3)^2)*((l2+l3+1)^2 - j^2))
-            tol = 10*max(abs(X),abs(Y),abs(Z))*eps(BigFloat)
+            Z = (j+1) * sqrt( (j^2-(j2-j3)^2) * ((j2+j3+1)^2-j^2) *
+                                (j^2-(l2-l3)^2) * ((l2+l3+1)^2-j^2) )
+            tol = 10 * max(abs(X), abs(Y), abs(Z)) * eps(BigFloat)
             @test (X*wigner6j(BigFloat,j+1,j2,j3,l1,l2,l3) + Z*wigner6j(BigFloat,j-1,j2,j3,l1,l2,l3))≈(-Y*wigner6j(BigFloat,j,j2,j3,l1,l2,l3)) atol=tol
         end
     end
@@ -121,15 +123,15 @@ end
                 M = rand(-J:J) # only test for one instance of M in -J:J, should be independent of M anyway
                 fill!(V1,0)
                 fill!(V2,0)
-                for (k1,m1) in enumerate(m1range)
-                    for (k2,m2) in enumerate(m2range)
-                        abs(m1+m2)<=J12 || continue
-                        for (k3,m3) in enumerate(m3range)
-                            abs(m2+m3)<=J23 || continue
-                            m1+m2+m3==M || continue
-                            V1[k1,k2,k3] = clebschgordan(j1,m1,j2,m2,J12)*clebschgordan(J12,m1+m2,j3,m3,J)
-                            V2[k1,k2,k3] = clebschgordan(j2,m2,j3,m3,J23)*clebschgordan(j1,m1,J23,m2+m3,J)
-                        end
+                for (k1,m1) in enumerate(m1range), (k2,m2) in enumerate(m2range)
+                    abs(m1+m2)<=J12 || continue
+                    for (k3,m3) in enumerate(m3range)
+                        abs(m2+m3)<=J23 || continue
+                        m1+m2+m3==M || continue
+                        V1[k1,k2,k3] = clebschgordan(j1,m1,j2,m2,J12) *
+                                        clebschgordan(J12,m1+m2,j3,m3,J)
+                        V2[k1,k2,k3] = clebschgordan(j2,m2,j3,m3,J23) *
+                                        clebschgordan(j1,m1,J23,m2+m3,J)
                     end
                 end
                 @test racahW(j1,j2,J,j3,J12,J23) ≈ dot(V2,V1)/sqrt((2*J12+1)*(2*J23+1)) atol=10*eps(Float64)

@@ -5,7 +5,6 @@ export δ, Δ, clebschgordan, wigner3j, wigner6j, racahV, racahW, HalfInteger
 using Base.GMP.MPZ
 using HalfIntegers
 
-#include("halfinteger.jl")
 include("primefactorization.jl")
 
 const Wigner3j = Dict{Tuple{UInt,UInt,UInt,Int,Int},Tuple{Rational{BigInt},Rational{BigInt}}}()

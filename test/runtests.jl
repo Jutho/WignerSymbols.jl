@@ -5,7 +5,7 @@ using Random
 
 Random.seed!(1234)
 
-smalljlist = 0:1//2:10
+smalljlist = 0:1//2:6
 largejlist = 0:1//2:1000
 
 @testset "triangle coefficient" begin
@@ -58,46 +58,50 @@ end
 end
 
 @testset "wigner3j: test orthogonality relations" begin
-    # j1 <= 200 and j2 <= 200 so that this test runs quickly
-    j1 = convert(BigFloat,rand(0:1//2:200))
-    j2 = convert(BigFloat,rand(0:1//2:200))
-    m1 = rand(-j1:j1)
-    m2 = rand(-j2:j2)
 
-    # there are two inner products: dot3_wigner3j and dot12_wigner3j
-    dot3_wigner3j(n1,n2) = sum(sum(
-        (2*l3 + 1) * wigner3j(BigFloat,j1,j2,l3,m1,m2,n3) * wigner3j(BigFloat,j1,j2,l3,n1,n2,n3)
-    for n3 = -l3:l3)
-    for l3 = abs(j1-j2):(j1+j2))
+    for j1 in smalljlist, j2 in smalljlist
 
-    @test dot3_wigner3j(m1,m2) ≈ one(BigFloat)
+        m1 = rand(-j1:j1)
+        m2 = rand(-j2:j2)
 
-    j3 = rand(abs(j1-j2):1//2:(j1+j2))
-    m3 = rand(-j3:j3)
+        # there are two inner products: dot3_wigner3j and dot12_wigner3j
+        dot3_wigner3j(n1,n2) = sum(sum(
+                (2*l3 + 1) * wigner3j(BigFloat,j1,j2,l3,m1,m2,n3) * wigner3j(BigFloat,j1,j2,l3,n1,n2,n3)
+            for n3 = -l3:l3)
+        for l3 = abs(j1-j2):(j1+j2))
 
-    dot12_wigner3j(l3,n3) = (2*j3 + 1) * sum(
-        wigner3j(BigFloat,j1,j2,j3,n1,n2,m3) * wigner3j(BigFloat,j1,j2,l3,n1,n2,n3)
-    for n1 = -j1:j1, n2 = -j2:j2)
+        @test dot3_wigner3j(m1,m2) ≈ one(BigFloat)
 
-    @test dot12_wigner3j(j3,m3) ≈ one(BigFloat)
-
-    # dot_wigner3j equals 0 unless (n1 == m1 and n2 == m2)
-    for k = 1:10
-        n1 = rand(-j1:j1)
-        n2 = rand(-j2:j2)
-        if (n1 == m1 && n2 == m2)
-            @test dot3_wigner3j(n1,n2) ≈ one(BigFloat)
-        else
-            @test dot3_wigner3j(n1,n2) ≈ zero(BigFloat)
+        # dot3_wigner3j equals 0 unless (n1 == m1 and n2 == m2)
+        for n1 in -j1:j1, n2 in -j2:j2
+            if (n1 == m1 && n2 == m2)
+                @test dot3_wigner3j(n1,n2) ≈ one(BigFloat)
+            else
+                # isapprox is not recommended for comparisons with zero.
+                @test dot3_wigner3j(n1,n2) < 100 * eps(BigFloat)
+            end
         end
 
-        l3 = rand(abs(j1-j2):1//2:(j1+j2))
-        n3 = rand(-l3:l3)
-        if (l3 == j3 && n3 == m3)
-            @test dot12_wigner3j(l3,n3) ≈ one(BigFloat)
-        else
-            @test dot12_wigner3j(l3,n3) ≈ zero(BigFloat)
+        dot12_wigner3j(l3,n3,j3,m3) = (2*j3 + 1) * sum(
+            wigner3j(BigFloat,j1,j2,j3,n1,n2,m3) * wigner3j(BigFloat,j1,j2,l3,n1,n2,n3)
+        for n1 = -j1:j1, n2 = -j2:j2)
+
+        triangle_condition(j1,j2,j3) = (abs(j1 - j2) <= j3 <= j1 + j2) && isinteger(j1+j2+j3)
+
+        verysmallj3list = [abs(j1-j2), abs(j1-j2)+1//2, j1+j2]
+
+        for j3 in verysmallj3list
+            for m3 in -j3:j3, l3 in verysmallj3list
+                for n3 in -l3:l3
+                    if (l3 == j3 && n3 == m3) && triangle_condition(j1,j2,j3)
+                        @test dot12_wigner3j(l3,n3,j3,m3) ≈ one(BigFloat)
+                    else
+                        @test abs(dot12_wigner3j(l3,n3,j3,m3)) < 100*eps(BigFloat)
+                    end
+                end
+            end
         end
+
     end
 end
 

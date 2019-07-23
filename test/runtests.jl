@@ -29,7 +29,7 @@ end
             ind2 = 1
             for j3 in abs(j1-j2):(j1+j2)
                 for m3 in -j3:j3
-                    M[ind1,ind2] = clebschgordan(j1,m1,j2,m2,j3,m3)
+                    M[ind1,ind2] = clebschgordan(Float64,j1,m1,j2,m2,j3,m3)
                     ind2 += 1
                 end
             end
@@ -68,7 +68,7 @@ end
             M = zeros(Float64, (length(j3range), length(j6range)))
             for (k2,j6) in enumerate(j6range)
                 for (k1,j3) in enumerate(j3range)
-                    M[k1,k2] = sqrt(2*j3+1)*sqrt(2*j6+1)*wigner6j(j1,j2,j3,j4,j5,j6)
+                    M[k1,k2] = sqrt(2*j3+1)*sqrt(2*j6+1)*wigner6j(Float64,j1,j2,j3,j4,j5,j6)
                 end
             end
             @test M'*M ≈ one(M)
@@ -82,7 +82,7 @@ end
         j4 = j2
         j5 = j1
         for j3 in abs(j1-j2):(j1+j2)
-            @test wigner6j(j1,j2,j3,j4,j5,j6) ≈ (-1)^(j1+j2+j3)/sqrt((2*j1+1)*(2*j2+1))
+            @test wigner6j(Float64,j1,j2,j3,j4,j5,j6) ≈ (-1)^(j1+j2+j3)/sqrt((2*j1+1)*(2*j2+1))
         end
     end
 end
@@ -128,13 +128,13 @@ end
                     for (k3,m3) in enumerate(m3range)
                         abs(m2+m3)<=J23 || continue
                         m1+m2+m3==M || continue
-                        V1[k1,k2,k3] = clebschgordan(j1,m1,j2,m2,J12) *
-                                        clebschgordan(J12,m1+m2,j3,m3,J)
-                        V2[k1,k2,k3] = clebschgordan(j2,m2,j3,m3,J23) *
-                                        clebschgordan(j1,m1,J23,m2+m3,J)
+                        V1[k1,k2,k3] = clebschgordan(Float64,j1,m1,j2,m2,J12) *
+                                        clebschgordan(Float64,J12,m1+m2,j3,m3,J)
+                        V2[k1,k2,k3] = clebschgordan(Float64,j2,m2,j3,m3,J23) *
+                                        clebschgordan(Float64,j1,m1,J23,m2+m3,J)
                     end
                 end
-                @test racahW(j1,j2,J,j3,J12,J23) ≈ dot(V2,V1)/sqrt((2*J12+1)*(2*J23+1)) atol=10*eps(Float64)
+                @test racahW(Float64,j1,j2,J,j3,J12,J23) ≈ dot(V2,V1)/sqrt((2*J12+1)*(2*J23+1)) atol=10*eps(Float64)
             end
         end
     end

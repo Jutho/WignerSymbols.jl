@@ -6,6 +6,7 @@ using Base.GMP.MPZ
 using HalfIntegers
 
 include("primefactorization.jl")
+include("AsqrtB.jl")
 
 const Wigner3j = Dict{Tuple{UInt,UInt,UInt,Int,Int},Tuple{Rational{BigInt},Rational{BigInt}}}()
 const Wigner6j = Dict{NTuple{6,UInt},Tuple{Rational{BigInt},Rational{BigInt}}}()
@@ -65,8 +66,8 @@ as a type `T` floating point number. By default, `T = Float64` and `m₃ = -m₁
 Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
 throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
 """
-wigner3j(j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = wigner3j(Float64, j₁, j₂, j₃, m₁, m₂, m₃)
-function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
+wigner3j(j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = wigner3j(AsqrtB{Rational{BigInt}}, j₁, j₂, j₃, m₁, m₂, m₃)
+function wigner3j(T::Type{<:Number}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
     # check angular momenta
     for (jᵢ,mᵢ) in ((j₁, m₁), (j₂, m₂), (j₃, m₃))
         ϵ(jᵢ, mᵢ) || throw(DomainError((jᵢ, mᵢ), "invalid combination (jᵢ, mᵢ)"))
@@ -103,8 +104,9 @@ function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ =
         Wigner3j[(β₁, β₂, β₃, α₁, α₂)] = (r,s)
     end
 
-    sn, sd, rn, rd = convert.(T, (s.num, s.den, r.num, r.den))
-    return sgn*(sn/sd)*sqrt(rn/rd)
+    #sn, sd, rn, rd = convert.(T, (s.num, s.den, r.num, r.den))
+    #return sgn*(sn/sd)*sqrt(rn/rd)
+    return T(AsqrtB(sgn*s, r))
 end
 
 """
@@ -117,11 +119,12 @@ Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisf
 throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
 """
 clebschgordan(j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) =
-    clebschgordan(Float64, j₁, m₁, j₂, m₂, j₃, m₃)
-function clebschgordan(T::Type{<:AbstractFloat}, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂)
+    clebschgordan(AsqrtB{Rational{BigInt}}, j₁, m₁, j₂, m₂, j₃, m₃)
+function clebschgordan(T::Type{<:Number}, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂)
     s = wigner3j(T, j₁, j₂, j₃, m₁, m₂, -m₃)
     iszero(s) && return s
-    s *= sqrt(convert(T, j₃+j₃+one(j₃)))
+    s *= AsqrtB(1, j₃+j₃+one(j₃))
+    #s *= sqrt(convert(T, j₃+j₃+one(j₃)))
     return isodd(convert(Int,j₁ - j₂ + m₃)) ? -s : s
 end
 
@@ -136,8 +139,8 @@ as a type `T` floating point number. By default, `T = Float64` and `m₃ = -m₁
 Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
 throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
 """
-racahV(j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = racahV(Float64, j₁, j₂, j₃, m₁, m₂, m₃)
-function racahV(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
+racahV(j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = racahV(AsqrtB{Rational{BigInt}}, j₁, j₂, j₃, m₁, m₂, m₃)
+function racahV(T::Type{<:Number}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
     s = wigner3j(T, j₁, j₂, j₃, m₁, m₂, m₃)
     return isodd(convert(Int, -j₁ + j₂ + j₃)) ? -s : s
 end
@@ -154,8 +157,8 @@ Returns `zero(T)` if any of triangle conditions `δ(j₁, j₂, j₃)`, `δ(j₁
 `δ(j₂, j₄, j₆)`, `δ(j₃, j₄, j₅)` are not satisfied, but throws a `DomainError` if
 the `jᵢ`s are not integer or halfinteger.
 """
-wigner6j(j₁, j₂, j₃, j₄, j₅, j₆) = wigner6j(Float64, j₁, j₂, j₃, j₄, j₅, j₆)
-function wigner6j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, j₄, j₅, j₆)
+wigner6j(j₁, j₂, j₃, j₄, j₅, j₆) = wigner6j(AsqrtB{Rational{BigInt}}, j₁, j₂, j₃, j₄, j₅, j₆)
+function wigner6j(T::Type{<:Number}, j₁, j₂, j₃, j₄, j₅, j₆)
     # check validity of `jᵢ`s
     for jᵢ in (j₁, j₂, j₃, j₄, j₅, j₆)
         (ishalfinteger(jᵢ) && jᵢ >= zero(jᵢ)) || throw(DomainError("invalid jᵢ", jᵢ))
@@ -202,8 +205,9 @@ function wigner6j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, j₄, j₅, j₆)
         Wigner6j[(β₁, β₂, β₃, α₁, α₂, α₃)] = (r, s)
     end
 
-    sn, sd, rn, rd = convert.(T, (s.num, s.den, r.num, r.den))
-    return (sn/sd)*sqrt(rn/rd)
+    #sn, sd, rn, rd = convert.(T, (s.num, s.den, r.num, r.den))
+    #return (sn/sd)*sqrt(rn/rd)
+    return T(AsqrtB(s, r))
 end
 
 """
@@ -217,8 +221,8 @@ Returns `zero(T)` if any of triangle conditions `δ(j₁, j₂, J₁₂)`, `δ(j
 `δ(j₁, J₂₃, J)`, `δ(J₁₂, j₃, J)` are not satisfied, but throws a `DomainError` if
 the `jᵢ`s and `J`s are not integer or halfinteger.
 """
-racahW(j₁, j₂, J, j₃, J₁₂, J₂₃) = racahW(Float64, j₁, j₂, J, j₃, J₁₂, J₂₃)
-function racahW(T::Type{<:AbstractFloat}, j₁, j₂, J, j₃, J₁₂, J₂₃)
+racahW(j₁, j₂, J, j₃, J₁₂, J₂₃) = racahW(AsqrtB{Rational{BigInt}}, j₁, j₂, J, j₃, J₁₂, J₂₃)
+function racahW(T::Type{<:Number}, j₁, j₂, J, j₃, J₁₂, J₂₃)
     s = wigner6j(T, j₁, j₂, J₁₂, j₃, J, J₂₃)
     if !iszero(s) && isodd(convert(Int, j₁ + j₂ + j₃ + J))
         return -s

@@ -1,9 +1,24 @@
 using Test
 using WignerSymbols
+using WignerSymbols: simplify
 using LinearAlgebra
 using Random
 
 Random.seed!(1234)
+
+@testset "RationalRoot" begin
+    @test RationalRoot(1//1) == 1
+    @test RationalRoot(2//2) == 1
+    @test RationalRoot(4//9) == 2//3
+    @test 3*RationalRoot(1//2) == RationalRoot(9//2)
+    @test 2//3*RationalRoot(1//2) == RationalRoot(2//9)
+    @test RationalRoot(1//2)*RationalRoot(2//3) == RationalRoot(1//3)
+    @test RationalRoot(1//2)/3 == RationalRoot(1//18)
+    @test RationalRoot(1//2)/RationalRoot(2//1) == RationalRoot(1//4)
+    @test RationalRoot(3//5)^2 == 3//5
+    @test RationalRoot(3) == RationalRoot(3//1)
+    @test simplify(-RationalRoot(8//3)) == (-2//1, 2//3)
+end
 
 smalljlist = 0:1//2:10
 largejlist = 0:1//2:1000

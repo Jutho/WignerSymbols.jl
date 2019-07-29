@@ -10,6 +10,8 @@ include("primefactorization.jl")
 const Wigner3j = Dict{Tuple{UInt,UInt,UInt,Int,Int},Tuple{Rational{BigInt},Rational{BigInt}}}()
 const Wigner6j = Dict{NTuple{6,UInt},Tuple{Rational{BigInt},Rational{BigInt}}}()
 
+const FASTCUTOFF = convert(BigInt, typemax(Int))
+
 function __init__()
     global bigone, bigprimetable, Wigner3j, Wigner6j
     bigone[] = big(1)
@@ -103,8 +105,12 @@ function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ =
         Wigner3j[(β₁, β₂, β₃, α₁, α₂)] = (r,s)
     end
 
-    sn, sd, rn, rd = convert.(T, (s.num, s.den, r.num, r.den))
-    return sgn*(sn/sd)*sqrt(rn/rd)
+    if T != BigFloat && all((s.num, s.den, r.num, r.den) .< FASTCUTOFF)
+        sn, sd, rn, rd = convert.(T, (s.num, s.den, r.num, r.den))
+        return sgn*(sn/sd)*sqrt(rn/rd)
+    else
+        return convert(T, sgn*s*sqrt(r))
+    end
 end
 
 """
@@ -202,8 +208,12 @@ function wigner6j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, j₄, j₅, j₆)
         Wigner6j[(β₁, β₂, β₃, α₁, α₂, α₃)] = (r, s)
     end
 
-    sn, sd, rn, rd = convert.(T, (s.num, s.den, r.num, r.den))
-    return (sn/sd)*sqrt(rn/rd)
+    if T != BigFloat && all((s.num, s.den, r.num, r.den) .< FASTCUTOFF)
+        sn, sd, rn, rd = convert.(T, (s.num, s.den, r.num, r.den))
+        return (sn/sd)*sqrt(rn/rd)
+    else
+        return convert(T, s*sqrt(r))
+    end
 end
 
 """

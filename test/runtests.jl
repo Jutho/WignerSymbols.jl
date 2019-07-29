@@ -27,11 +27,9 @@ end
         ind1 = 1
         for m1 in -j1:j1, m2 in -j2:j2
             ind2 = 1
-            for j3 in abs(j1-j2):(j1+j2)
-                for m3 in -j3:j3
-                    M[ind1,ind2] = clebschgordan(j1,m1,j2,m2,j3,m3)
-                    ind2 += 1
-                end
+            @inbounds for j3 in abs(j1-j2):(j1+j2), m3 in -j3:j3
+                M[ind1,ind2] = clebschgordan(j1,m1,j2,m2,j3,m3)
+                ind2 += 1
             end
             ind1 += 1
         end
@@ -54,6 +52,27 @@ end
             tol = 10*max(abs(X),abs(Y),abs(Z))*eps(BigFloat)
             @test (X*wigner3j(BigFloat,j+1,j2,j3,-m2-m3,m2,m3) + Z*wigner3j(BigFloat,j-1,j2,j3,-m2-m3,m2,m3))≈(-Y*wigner3j(BigFloat,j,j2,j3,-m2-m3,m2,m3)) atol=tol
         end
+    end
+end
+
+@testset "wigner3j: test orthogonality relations" begin
+    # equivalent to Clebsch-Gordan orthogonality, now test using Float32
+    for j1 in smalljlist, j2 in smalljlist
+        d1::Int = 2*j1+1
+        d2::Int = 2*j2+1
+        M = zeros(Float32, (d1*d2, d1*d2))
+        ind2 = 1
+        for m1 in -j1:j1, m2 in -j2:j2
+            ind1 = 1
+            @inbounds for j3 in abs(j1-j2):(j1+j2), m3 in -j3:j3
+                d3::Int = 2*j3+1
+                M[ind1,ind2] += sqrt(d3) * wigner3j(Float32, j1, j2, j3, m1, m2, m3)
+                ind1 += 1
+            end
+            ind2 += 1
+        end
+        @test M'*M ≈ one(M) # orthogonality relation type 1
+        @test M*M' ≈ one(M) # orthogonality relation type 2
     end
 end
 

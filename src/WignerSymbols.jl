@@ -6,9 +6,12 @@ using Base.GMP.MPZ
 using HalfIntegers
 
 include("primefactorization.jl")
+include("rationalroot.jl")
 
-const Wigner3j = Dict{Tuple{UInt,UInt,UInt,Int,Int},Tuple{Rational{BigInt},Rational{BigInt}}}()
-const Wigner6j = Dict{NTuple{6,UInt},Tuple{Rational{BigInt},Rational{BigInt}}}()
+const Wigner3j =
+    Dict{Tuple{UInt,UInt,UInt,Int,Int},Tuple{Rational{BigInt},Rational{BigInt}}}()
+const Wigner6j =
+    Dict{NTuple{6,UInt},Tuple{Rational{BigInt},Rational{BigInt}}}()
 
 function __init__()
     global bigone, bigprimetable, Wigner3j, Wigner6j
@@ -33,17 +36,15 @@ Checks the triangle conditions `j₃ <= j₁ + j₂`, `j₁ <= j₂ + j₃` and 
 
 # triangle coefficient
 """
-    Δ(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃) -> ::T
+    Δ(j₁, j₂, j₃) -> ::T
 
 Computes the triangle coefficient
-`Δ(j₁, j₂, j₃) = √((j₁+j₂-j₃)!*(j₁-j₂+j₃)!*(j₂+j₃-j₁)! / (j₁+j₂+j₃+1)!)`
-as a type `T` floating point number.
+`Δ(j₁, j₂, j₃) = √((j₁+j₂-j₃)!*(j₁-j₂+j₃)!*(j₂+j₃-j₁)! / (j₁+j₂+j₃+1)!)` in an exact `RationalRoot` representation.
 
-Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
+Returns zero if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
 throws a `DomainError` if the `jᵢ`s are not (half)integer
 """
-Δ(j₁, j₂, j₃) = Δ(Float64, j₁, j₂, j₃)
-function Δ(T::Type{<:AbstractFloat}, j₁, j₂, j₃)
+function Δ(j₁, j₂, j₃)
     for jᵢ in (j₁, j₂, j₃)
         (ishalfinteger(jᵢ) && jᵢ >= zero(jᵢ)) || throw(DomainError("invalid jᵢ", jᵢ))
     end
@@ -51,22 +52,22 @@ function Δ(T::Type{<:AbstractFloat}, j₁, j₂, j₃)
         return zero(T)
     end
     n, d = Δ²(j₁, j₂, j₃)
-    return sqrt(convert(T, convert(BigInt, n) // convert(BigInt, d)))
+    return rationalsqrt(convert(BigInt, n)//convert(BigInt, d))
 end
+Base.@deprecate(Δ(T::Type{<:Real}, j₁, j₂, j₃), convert(T, Δ(j₁, j₂, j₃)))
 
 """
-    wigner3j(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, m₁, m₂, m₃ = -m₂-m₁) -> ::T
+    wigner3j(j₁, j₂, j₃, m₁, m₂, m₃ = -m₂-m₁)
 
 Compute the value of the Wigner-3j symbol
     ⎛ j₁  j₂  j₃ ⎞
     ⎝ m₁  m₂  m₃ ⎠
-as a type `T` floating point number. By default, `T = Float64` and `m₃ = -m₁-m₂`.
+in an exact `RationalRoot` representation.
 
-Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
-throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
+Returns zero if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but throws a
+`DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
 """
-wigner3j(j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = wigner3j(Float64, j₁, j₂, j₃, m₁, m₂, m₃)
-function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
+function wigner3j(j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
     # check angular momenta
     for (jᵢ,mᵢ) in ((j₁, m₁), (j₂, m₂), (j₃, m₃))
         ϵ(jᵢ, mᵢ) || throw(DomainError((jᵢ, mᵢ), "invalid combination (jᵢ, mᵢ)"))
@@ -102,60 +103,61 @@ function wigner3j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ =
         s *= compute3jseries(β₁, β₂, β₃, α₁, α₂)
         Wigner3j[(β₁, β₂, β₃, α₁, α₂)] = (r,s)
     end
-
-    sn, sd, rn, rd = convert.(T, (s.num, s.den, r.num, r.den))
-    return sgn*(sn/sd)*sqrt(rn/rd)
+    return s*rationalsqrt(r)
 end
+Base.@deprecate(wigner3j(T::Type{<:Real}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂),
+    convert(T, wigner3j(j₁, j₂, j₃, m₁, m₂, m₃)))
+
 
 """
-    clebschgordan(T::Type{<:AbstractFloat} = Float64, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) -> ::T
+    clebschgordan(j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂)
 
 Compute the value of the Clebsch-Gordan coefficient <j₁, m₁; j₂, m₂ | j₃, m₃ >
-as a type `T` floating point number. By default, `T = Float64` and `m₃ = m₁+m₂`.
+in an exact `RationalRoot` representation.
 
-Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
-throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
+Returns zero if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but throws a
+`DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
 """
-clebschgordan(j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) =
-    clebschgordan(Float64, j₁, m₁, j₂, m₂, j₃, m₃)
-function clebschgordan(T::Type{<:AbstractFloat}, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂)
-    s = wigner3j(T, j₁, j₂, j₃, m₁, m₂, -m₃)
+function clebschgordan(j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂)
+    s = wigner3j(j₁, j₂, j₃, m₁, m₂, -m₃)
     iszero(s) && return s
     s *= sqrt(convert(T, j₃+j₃+one(j₃)))
     return isodd(convert(Int,j₁ - j₂ + m₃)) ? -s : s
 end
+Base.@deprecate(clebschgordan(T::Type{<:Real}, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂),
+    convert(T, clebschgordan(j₁, m₁, j₂, m₂, j₃, m₃)))
 
 """
-    racahV(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) -> ::T
+    racahV(j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
 
 Compute the value of Racah's V-symbol
 V(j₁, j₂, j₃; m₁, m₂, m₃) = (-1)^(-j₁+j₂+j₃) * ⎛ j₁  j₂  j₃ ⎞
                                                ⎝ m₁  m₂  m₃ ⎠
-as a type `T` floating point number. By default, `T = Float64` and `m₃ = -m₁-m₂`.
+in an exact `RationalRoot` representation.
 
-Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
-throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
+Returns zero if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but throws a
+`DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
 """
-racahV(j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = racahV(Float64, j₁, j₂, j₃, m₁, m₂, m₃)
-function racahV(T::Type{<:AbstractFloat}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
-    s = wigner3j(T, j₁, j₂, j₃, m₁, m₂, m₃)
+function racahV(j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
+    s = wigner3j(j₁, j₂, j₃, m₁, m₂, m₃)
     return isodd(convert(Int, -j₁ + j₂ + j₃)) ? -s : s
 end
+Base.@deprecate(racahV(T::Type{<:Real}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂),
+    convert(T, racahV(j₁, j₂, j₃, m₁, m₂, m₃)))
 
 """
-    wigner6j(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, j₄, j₅, j₆) -> ::T
+    wigner6j(j₁, j₂, j₃, j₄, j₅, j₆)
 
 Compute the value of the Wigner-6j symbol
     _⎧ j₁  j₂  j₃ ⎫_
      ⎩ j₄  j₅  j₆ ⎭
-as a type `T` floating point number. By default, `T = Float64`.
+in an exact `RationalRoot` representation.
 
-Returns `zero(T)` if any of triangle conditions `δ(j₁, j₂, j₃)`, `δ(j₁, j₆, j₅)`,
+Returns zero if any of triangle conditions `δ(j₁, j₂, j₃)`, `δ(j₁, j₆, j₅)`,
 `δ(j₂, j₄, j₆)`, `δ(j₃, j₄, j₅)` are not satisfied, but throws a `DomainError` if
 the `jᵢ`s are not integer or halfinteger.
 """
-wigner6j(j₁, j₂, j₃, j₄, j₅, j₆) = wigner6j(Float64, j₁, j₂, j₃, j₄, j₅, j₆)
-function wigner6j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, j₄, j₅, j₆)
+function wigner6j(j₁, j₂, j₃, j₄, j₅, j₆)
     # check validity of `jᵢ`s
     for jᵢ in (j₁, j₂, j₃, j₄, j₅, j₆)
         (ishalfinteger(jᵢ) && jᵢ >= zero(jᵢ)) || throw(DomainError("invalid jᵢ", jᵢ))
@@ -202,30 +204,32 @@ function wigner6j(T::Type{<:AbstractFloat}, j₁, j₂, j₃, j₄, j₅, j₆)
         Wigner6j[(β₁, β₂, β₃, α₁, α₂, α₃)] = (r, s)
     end
 
-    sn, sd, rn, rd = convert.(T, (s.num, s.den, r.num, r.den))
-    return (sn/sd)*sqrt(rn/rd)
+    return s*rationalsqrt(r)
 end
+Base.@deprecate(wigner6j(T::Type{<:Real}, j₁, j₂, j₃, j₄, j₅, j₆),
+    convert(T, wigner6j(j₁, j₂, j₃, j₄, j₅, j₆)))
 
 """
-    racahW(T::Type{<:AbstractFloat} = Float64, j₁, j₂, J, j₃, J₁₂, J₂₃) -> ::T
+    racahW(j₁, j₂, J, j₃, J₁₂, J₂₃)
 
 Compute the value of Racah's W coefficient
 `W(j₁, j₂, J, j₃; J₁₂, J₂₃) = <(j₁,(j₂j₃)J₂₃)J | ((j₁j₂)J₁₂,j₃)J> / sqrt((2J₁₂+1)*(2J₁₃+1))`
-as a type `T` floating point number. By default, `T = Float64`.
+in an exact RationalRoot representation.
 
-Returns `zero(T)` if any of triangle conditions `δ(j₁, j₂, J₁₂)`, `δ(j₂, j₃, J₂₃)`,
+Returns zero if any of triangle conditions `δ(j₁, j₂, J₁₂)`, `δ(j₂, j₃, J₂₃)`,
 `δ(j₁, J₂₃, J)`, `δ(J₁₂, j₃, J)` are not satisfied, but throws a `DomainError` if
 the `jᵢ`s and `J`s are not integer or halfinteger.
 """
-racahW(j₁, j₂, J, j₃, J₁₂, J₂₃) = racahW(Float64, j₁, j₂, J, j₃, J₁₂, J₂₃)
-function racahW(T::Type{<:AbstractFloat}, j₁, j₂, J, j₃, J₁₂, J₂₃)
-    s = wigner6j(T, j₁, j₂, J₁₂, j₃, J, J₂₃)
+function racahW(j₁, j₂, J, j₃, J₁₂, J₂₃)
+    s = wigner6j(j₁, j₂, J₁₂, j₃, J, J₂₃)
     if !iszero(s) && isodd(convert(Int, j₁ + j₂ + j₃ + J))
         return -s
     else
         return s
     end
 end
+Base.@deprecate(racahW(T::Type{<:Real}, j₁, j₂, J, j₃, J₁₂, J₂₃),
+    convert(T, racahW(j₁, j₂, J, j₃, J₁₂, J₂₃)))
 
 # COMPUTATIONAL ROUTINES
 #------------------------

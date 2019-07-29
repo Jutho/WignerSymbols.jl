@@ -1,10 +1,14 @@
 using Primes: isprime
 import Base.divgcd
 
-const primetable = [2,3,5]
-const factortable = [UInt8[], UInt8[1], UInt8[0,1], UInt8[2], UInt8[0,0,1]]
-const factorialtable = [UInt32[], UInt32[], UInt32[1], UInt32[1,1], UInt32[3,1], UInt32[3,1,1]]
-const bigprimetable = [[big(2)], [big(3)], [big(5)]]
+const primetable =
+    [2,3,5]
+const factortable =
+    [UInt8[], UInt8[1], UInt8[0,1], UInt8[2], UInt8[0,0,1]]
+const factorialtable =
+    [UInt32[], UInt32[], UInt32[1], UInt32[1,1], UInt32[3,1], UInt32[3,1,1]]
+const bigprimetable =
+    [[big(2)], [big(3)], [big(5)]]
 const bigone = Ref{BigInt}(big(1))
 
 # Make a prime iterator
@@ -47,11 +51,12 @@ function bigprime(n::Integer, e::Integer=1)
 end
 
 # A custom `Integer` subtype to store an integer as its prime factorization
-struct PrimeFactorization{T<:Unsigned} <: Integer
-    powers::Vector{T}
+struct PrimeFactorization{U<:Unsigned} <: Integer
+    powers::Vector{U}
     sign::Int8
 end
-PrimeFactorization(powers::Vector{T}) where {T<:Unsigned} = PrimeFactorization{T}(powers, one(Int8))
+PrimeFactorization(powers::Vector{U}) where {U<:Unsigned} =
+    PrimeFactorization{U}(powers, one(Int8))
 
 # define our own factor function, returning an instance of PrimeFactorization
 function primefactor(n::Integer)
@@ -101,8 +106,10 @@ end
 # Methods for PrimeFactorization:
 Base.copy(a::PrimeFactorization) = PrimeFactorization(copy(a.powers), a.sign)
 
-Base.one(::Type{PrimeFactorization{T}}) where {T<:Unsigned} = PrimeFactorization(Vector{T}())
-Base.zero(::Type{PrimeFactorization{T}}) where {T<:Unsigned} = PrimeFactorization(Vector{T}(), zero(Int8))
+Base.one(::Type{PrimeFactorization{U}}) where {U<:Unsigned} =
+    PrimeFactorization(Vector{U}())
+Base.zero(::Type{PrimeFactorization{U}}) where {U<:Unsigned} =
+    PrimeFactorization(Vector{U}(), zero(Int8))
 
 Base.promote_rule(P::Type{<:PrimeFactorization},::Type{<:Integer}) = P
 Base.promote_rule(P::Type{<:PrimeFactorization},::Type{BigInt}) = BigInt
@@ -117,10 +124,13 @@ function Base.convert(::Type{BigInt}, a::PrimeFactorization)
     end
     return A
 end
-Base.convert(::Type{PrimeFactorization{T}}, a::PrimeFactorization{T}) where {T<:Unsigned} = a
-Base.convert(::Type{PrimeFactorization{T1}}, a::PrimeFactorization{T2}) where {T1<:Unsigned, T2<:Unsigned} = PrimeFactorization(map(T1, a.powers), a.sign)
+Base.convert(::Type{PrimeFactorization{U}}, a::PrimeFactorization{U}) where {U<:Unsigned} =
+    a
+Base.convert(::Type{PrimeFactorization{U}}, a::PrimeFactorization) where {U<:Unsigned} =
+    PrimeFactorization(convert(Vector{U}, a.powers), a.sign)
 
-Base.:(==)(a::PrimeFactorization, b::PrimeFactorization) = a.powers == b.powers && a.sign == b.sign
+Base.:(==)(a::PrimeFactorization, b::PrimeFactorization) =
+    a.powers == b.powers && a.sign == b.sign
 function Base.:<(a::PrimeFactorization, b::PrimeFactorization)
     if a.sign != b.sign
         return a.sign < b.sign
@@ -128,7 +138,8 @@ function Base.:<(a::PrimeFactorization, b::PrimeFactorization)
         return <(-b, -a)
     else
         ag, bg = divgcd(a, b)
-        if length(ag.powers) <= length(bg.powers) && all(k->ag.powers[k]<bg.powers[k], 1:length(ag.powers))
+        if length(ag.powers) <= length(bg.powers) &&
+                all(k->ag.powers[k]<bg.powers[k], 1:length(ag.powers))
             return true
         else
             return convert(BigInt, ag) < convert(BigInt, bg)
@@ -168,8 +179,8 @@ function Base.lcm(a::PrimeFactorization{T}, b::PrimeFactorization{T}) where {T}
         return PrimeFactorization(_vmax!(copy(a.powers), b.powers))
     end
 end
-Base.divgcd(a::PrimeFactorization{T}, b::PrimeFactorization{T}) where {T} = divgcd!(copy(a), copy(b))
-function divgcd!(a::PrimeFactorization{T}, b::PrimeFactorization{T}) where {T}
+Base.divgcd(a::PrimeFactorization, b::PrimeFactorization) = divgcd!(copy(a), copy(b))
+function divgcd!(a::PrimeFactorization, b::PrimeFactorization)
     af, bf = a.powers, b.powers
     for k = 1:min(length(af), length(bf))
         gk = min(af[k], bf[k])

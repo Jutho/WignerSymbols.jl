@@ -116,13 +116,13 @@ Base.promote_rule(P::Type{<:PrimeFactorization},::Type{BigInt}) = BigInt
 
 Base.convert(P::Type{<:PrimeFactorization}, n::Integer) = convert(P, primefactor(n))
 function Base.convert(::Type{BigInt}, a::PrimeFactorization)
-    A = big(a.sign)
+    A = one(BigInt)
     for (n, e) in enumerate(a.powers)
         if !iszero(e)
             MPZ.mul!(A, bigprime(n, e))
         end
     end
-    return A
+    return a.sign < 0 ? MPZ.neg!(A) : A
 end
 Base.convert(::Type{PrimeFactorization{U}}, a::PrimeFactorization{U}) where {U<:Unsigned} =
     a

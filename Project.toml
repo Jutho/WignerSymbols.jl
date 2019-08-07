@@ -4,6 +4,7 @@ authors = ["Jutho Haegeman"]
 version = "1.0.0"
 
 [deps]
+RationalRoots = "308eb6b3-cc68-5ff3-9e97-c3c4da4fa681"
 HalfIntegers = "f0d1745a-41c9-11e9-1dd9-e5d34d218721"
 Primes = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
 

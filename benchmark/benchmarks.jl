@@ -24,19 +24,19 @@ function compute3jmax(jmax)
                     m₁ = 0
                     M₂ = min(j₂, j₃-m₁)
                     for m₂ = M₂:(-1):0
-                        wigner3j(j₁,j₂,j₃,0, m₂)
+                        wigner3j(Float64, j₁,j₂,j₃,0, m₂)
                     end
                     for m₁ = 1:j₁
                         M₂ = min(j₂, j₃-m₁)
                         for m₂ = -M₂:M₂
-                            wigner3j(j₁, j₂, j₃, m₁, m₂)
+                            wigner3j(Float64, j₁, j₂, j₃, m₁, m₂)
                         end
                     end
                 else
                     for m₁ = 1//2:j₁
                         M₂ = min(j₂, j₃-m₁)
                         for m₂ = -M₂:M₂
-                            wigner3j(j₁, j₂, j₃, m₁, m₂)
+                            wigner3j(Float64, j₁, j₂, j₃, m₁, m₂)
                         end
                     end
                 end
@@ -55,12 +55,12 @@ function computeinteger3jmax(jmax)
                 m₁ = 0
                 M₂ = min(j₂, j₃-m₁)
                 for m₂ = M₂:(-1):0
-                    wigner3j(j₁,j₂,j₃,0, m₂)
+                    wigner3j(Float64, j₁,j₂,j₃,0, m₂)
                 end
                 for m₁ = 1:j₁
                     M₂ = min(j₂, j₃-m₁)
                     for m₂ = -M₂:M₂
-                        wigner3j(j₁, j₂, j₃, m₁, m₂)
+                        wigner3j(Float64, j₁, j₂, j₃, m₁, m₂)
                     end
                 end
             end
@@ -76,7 +76,7 @@ function compute6jmax(jmax)
                 for j₄ = 0:1//2:jmax
                     for j₅ = abs(j₃-j₄):min(jmax,j₃+j₄)
                         for j₆ = min(abs(j₂-j₄),abs(j₁-j₅)):min(j₂+j₄,j₁+j₅,jmax)
-                            wigner6j(j₁, j₂, j₃, j₄, j₅, j₆)
+                            wigner6j(Float64, j₁, j₂, j₃, j₄, j₅, j₆)
                         end
                     end
                 end
@@ -95,7 +95,7 @@ function computeinteger6jmax(jmax)
                 for j₄ = 0:jmax
                     for j₅ = abs(j₃-j₄):min(jmax,j₃+j₄)
                         for j₆ = min(abs(j₂-j₄),abs(j₁-j₅)):min(j₂+j₄,j₁+j₅,jmax)
-                            wigner6j(j₁, j₂, j₃, j₄, j₅, j₆)
+                            wigner6j(Float64, j₁, j₂, j₃, j₄, j₅, j₆)
                         end
                     end
                 end

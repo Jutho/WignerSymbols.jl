@@ -36,11 +36,11 @@ Checks the triangle conditions `j₃ <= j₁ + j₂`, `j₁ <= j₂ + j₃` and 
 
 # triangle coefficient
 """
-    Δ(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃) -> ::T
+    Δ(T::Type{<:Real} = RationalRoot{BigInt}, j₁, j₂, j₃) -> ::T
 
 Computes the triangle coefficient
 `Δ(j₁, j₂, j₃) = √((j₁+j₂-j₃)!*(j₁-j₂+j₃)!*(j₂+j₃-j₁)! / (j₁+j₂+j₃+1)!)`
-as a type `T` floating point number.
+as a type `T` real number.
 
 Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
 throws a `DomainError` if the `jᵢ`s are not (half)integer
@@ -58,12 +58,12 @@ function Δ(T::Type{<:Real}, j₁, j₂, j₃)
 end
 
 """
-    wigner3j(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, m₁, m₂, m₃ = -m₂-m₁) -> ::T
+    wigner3j(T::Type{<:Real} = RationalRoot{BigInt}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₂-m₁) -> ::T
 
 Compute the value of the Wigner-3j symbol
     ⎛ j₁  j₂  j₃ ⎞
     ⎝ m₁  m₂  m₃ ⎠
-as a type `T` floating point number. By default, `T = Float64` and `m₃ = -m₁-m₂`.
+as a type `T` real number. By default, `T = RationalRoot{BigInt}` and `m₃ = -m₁-m₂`.
 
 Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
 throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
@@ -109,10 +109,10 @@ function wigner3j(T::Type{<:Real}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m�
 end
 
 """
-    clebschgordan(T::Type{<:AbstractFloat} = Float64, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) -> ::T
+    clebschgordan(T::Type{<:Real} = RationalRoot{BigInt}, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) -> ::T
 
 Compute the value of the Clebsch-Gordan coefficient <j₁, m₁; j₂, m₂ | j₃, m₃ >
-as a type `T` floating point number. By default, `T = Float64` and `m₃ = m₁+m₂`.
+as a type `T` real number. By default, `T = RationalRoot{BigInt}` and `m₃ = m₁+m₂`.
 
 Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
 throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
@@ -127,12 +127,12 @@ function clebschgordan(T::Type{<:Real}, j₁, m₁, j₂, m₂, j₃, m₃ = m�
 end
 
 """
-    racahV(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) -> ::T
+    racahV(T::Type{<:Real} = RationalRoot{BigInt}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) -> ::T
 
 Compute the value of Racah's V-symbol
 V(j₁, j₂, j₃; m₁, m₂, m₃) = (-1)^(-j₁+j₂+j₃) * ⎛ j₁  j₂  j₃ ⎞
                                                ⎝ m₁  m₂  m₃ ⎠
-as a type `T` floating point number. By default, `T = Float64` and `m₃ = -m₁-m₂`.
+as a type `T` real number. By default, `T = RationalRoot{BigInt}` and `m₃ = -m₁-m₂`.
 
 Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
 throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
@@ -144,12 +144,12 @@ function racahV(T::Type{<:Real}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂
 end
 
 """
-    wigner6j(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, j₄, j₅, j₆) -> ::T
+    wigner6j(T::Type{<:Real} = RationalRoot{BigInt}, j₁, j₂, j₃, j₄, j₅, j₆) -> ::T
 
 Compute the value of the Wigner-6j symbol
     _⎧ j₁  j₂  j₃ ⎫_
      ⎩ j₄  j₅  j₆ ⎭
-as a type `T` floating point number. By default, `T = Float64`.
+as a type `T` real number. By default, `T = RationalRoot{BigInt}`.
 
 Returns `zero(T)` if any of triangle conditions `δ(j₁, j₂, j₃)`, `δ(j₁, j₆, j₅)`,
 `δ(j₂, j₄, j₆)`, `δ(j₃, j₄, j₅)` are not satisfied, but throws a `DomainError` if
@@ -208,11 +208,11 @@ function wigner6j(T::Type{<:Real}, j₁, j₂, j₃, j₄, j₅, j₆)
 end
 
 """
-    racahW(T::Type{<:AbstractFloat} = Float64, j₁, j₂, J, j₃, J₁₂, J₂₃) -> ::T
+    racahW(T::Type{<:Real} = RationalRoot{BigInt}, j₁, j₂, J, j₃, J₁₂, J₂₃) -> ::T
 
 Compute the value of Racah's W coefficient
 `W(j₁, j₂, J, j₃; J₁₂, J₂₃) = <(j₁,(j₂j₃)J₂₃)J | ((j₁j₂)J₁₂,j₃)J> / sqrt((2J₁₂+1)*(2J₁₃+1))`
-as a type `T` floating point number. By default, `T = Float64`.
+as a type `T` real number. By default, `T = RationalRoot{BigInt}`.
 
 Returns `zero(T)` if any of triangle conditions `δ(j₁, j₂, J₁₂)`, `δ(j₂, j₃, J₂₃)`,
 `δ(j₁, J₂₃, J)`, `δ(J₁₂, j₃, J)` are not satisfied, but throws a `DomainError` if

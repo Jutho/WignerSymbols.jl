@@ -9,6 +9,9 @@ HalfIntegers = "f0d1745a-41c9-11e9-1dd9-e5d34d218721"
 Primes = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
 
 [compat]
+RationalRoots = "0.1"
+HalfIntegers = "1.0"
+Primes = "0.4"
 julia = "1"
 
 [extras]

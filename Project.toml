@@ -1,7 +1,7 @@
 name = "WignerSymbols"
 uuid = "9f57e263-0b3d-5e2e-b1be-24f2bb48858b"
 authors = ["Jutho Haegeman"]
-version = "1.0.0"
+version = "1.1.0"
 
 [deps]
 RationalRoots = "308eb6b3-cc68-5ff3-9e97-c3c4da4fa681"

@@ -18,21 +18,21 @@ Pkg.add("WignerSymbols")
 ## Available functions
 While the following function signatures are probably self-explanatory, you can query help
 for them in the Julia REPL to get further details.
-*   `wigner3j(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, m₁, m₂, m₃ = -m₂-m₁) -> ::T`
-*   `wigner6j(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, j₄, j₅, j₆) -> ::T`
-*   `clebschgordan(T::Type{<:AbstractFloat} = Float64, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) -> ::T`
-*   `racahV(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) -> ::T`
-*   `racahW(T::Type{<:AbstractFloat} = Float64, j₁, j₂, J, j₃, J₁₂, J₂₃) -> ::T`
+*   `wigner3j(T::Type{<:Real} = RationalRoot{BigInt}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₂-m₁) -> ::T`
+*   `wigner6j(T::Type{<:Real} = RationalRoot{BigInt}, j₁, j₂, j₃, j₄, j₅, j₆) -> ::T`
+*   `clebschgordan(T::Type{<:Real} = RationalRoot{BigInt}, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) -> ::T`
+*   `racahV(T::Type{<:Real} = RationalRoot{BigInt}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) -> ::T`
+*   `racahW(T::Type{<:Real} = RationalRoot{BigInt}, j₁, j₂, J, j₃, J₁₂, J₂₃) -> ::T`
 *   `δ(j₁, j₂, j₃) -> ::Bool`
-*   `Δ(T::Type{<:AbstractFloat} = Float64, j₁, j₂, j₃) -> ::T`
+*   `Δ(T::Type{<:Real} = RationalRoot{BigInt}, j₁, j₂, j₃) -> ::T`
 
-~~The package also defines the `HalfInteger` type that can be used to represent half-
-integer values. Construct if as `HalfInteger(a::Real)` or `HalfInteger(numerator::Integer,
-denominator::Integer)`. Furthermore, the range operator `a:b` can be used to create ranges
-of `HalfInteger` values (a `HalfIntegerRange`).~~
 
-The package now relies on [HalfIntegers.jl](https://github.com/sostock/HalfIntegers.jl) to
-support and use arithmetic with half integer numbers.
+The package relies on [HalfIntegers.jl](https://github.com/sostock/HalfIntegers.jl) to
+support and use arithmetic with half integer numbers, and, since v1.1, on
+[RationalRoots.jl](https://github.com/Jutho/RationalRoots.jl) to return the result exactly
+as the square root of a `Rational{BigInt}`, which will then be automatically converted to a
+suitable floating point value upon further arithmetic, using the `AbstractIrrational`
+interface from Julia Base.
 
 ## Implementation
 Largely based on reading the paper (but not the code):
@@ -63,5 +63,6 @@ for caching the computed 3j and 6j symbols.
 
     [3] [L. Wei, New formula for 9-j symbols and their direct calculation, Computers in Physics, 12 (1998), 632–634.](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.481.5946&rep=rep1&type=pdf)
 
-*   Convenient syntax to get the exact results in the `√(r) * s` format, but in such a way
-    that it can be used by the Julia type system and can be converted afterwards.
+*   ~~Convenient syntax to get the exact results in the `√(r) * s` format, but in such a way
+    that it can be used by the Julia type system and can be converted afterwards.~~
+    Solved in v1.1 by the package RationalRoots.jl, the implementation of which was initiated by @w-vdh in [PR #9](https://github.com/Jutho/WignerSymbols.jl/pull/9).

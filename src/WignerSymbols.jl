@@ -9,6 +9,13 @@ const RRBig = RationalRoot{BigInt}
 import RationalRoots: _convert
 
 include("wignercache.jl")
+function __init__()
+    global default_cache
+    # rehash global dictionaries for precompile
+    Base.rehash!(default_cache.Wigner3j)
+    Base.rehash!(default_cache.Wigner6j)
+end
+
 include("primefactorization.jl")
 
 # check integerness and correctness of (j,m) angular momentum

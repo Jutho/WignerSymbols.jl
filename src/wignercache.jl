@@ -25,9 +25,6 @@ function WignerCache()
     cache.bigprimetable[1][1] = big(2)
     cache.bigprimetable[2][1] = big(3)
     cache.bigprimetable[3][1] = big(5)
-    Base.rehash!(cache.Wigner3j)
-    Base.rehash!(cache.Wigner6j)
-
     return cache
 end
 

@@ -1,53 +1,45 @@
 using Primes: isprime
 import Base.divgcd
 
-const primetable =
-    [2,3,5]
-const factortable =
-    [UInt8[], UInt8[1], UInt8[0,1], UInt8[2], UInt8[0,0,1]]
-const factorialtable =
-    [UInt32[], UInt32[], UInt32[1], UInt32[1,1], UInt32[3,1], UInt32[3,1,1]]
-const bigprimetable =
-    [[big(2)], [big(3)], [big(5)]]
-const bigone = Ref{BigInt}(big(1))
-
 # Make a prime iterator
 struct PrimeIterator
+    cache::WignerCache
 end
-primes() = PrimeIterator()
+primes(cache::WignerCache) = PrimeIterator(cache)
 
 Base.IteratorSize(::Type{PrimeIterator}) = Base.IsInfinite()
 Base.IteratorEltype(::Type{PrimeIterator}) = Base.HasEltype()
 Base.eltype(::PrimeIterator) = Int
 
 # Get the `n`th prime; store all primes up to the `n`th if not yet available
-function prime(n::Int)
-    p = last(primetable)
-    while length(primetable) < n
+function prime(cache::WignerCache, n::Int)
+    p = last(cache.primetable)
+    while length(cache.primetable) < n
         p = p + 2
         while !isprime(p)
             p += 2
         end
-        push!(primetable, p)
-        push!(bigprimetable, [big(p)])
+        push!(cache.primetable, p)
+        push!(cache.bigprimetable, [big(p)])
     end
-    @inbounds return primetable[n]
+    @inbounds return cache.primetable[n]
 end
 
-Base.iterate(::PrimeIterator, n = 1) = prime(n), n+1
+Base.iterate(it::PrimeIterator, n = 1) = prime(it.cache, n), n+1
 
 # get primes and their powers as `BigInt`, also cache all results
-function bigprime(n::Integer, e::Integer=1)
-    e == 0 && return bigone[]
-    p = prime(n) # triggers computation of prime(n) if necessary
-    @inbounds l = length(bigprimetable[n])
+function bigprime(cache::WignerCache, n::Integer, e::Integer=1)
+    e == 0 && return cache.bigone[]
+    p = prime(cache, n) # triggers computation of prime(n) if necessary
+    @inbounds l = length(cache.bigprimetable[n])
     @inbounds while l < e
         # compute next prime power as approximate square of existing results
         k = (l+1)>>1
-        push!(bigprimetable[n], bigprimetable[n][k]*bigprimetable[n][l+1-k])
+        push!(cache.bigprimetable[n], 
+              cache.bigprimetable[n][k] * cache.bigprimetable[n][l+1-k])
         l += 1
     end
-    @inbounds return bigprimetable[n][e]
+    @inbounds return cache.bigprimetable[n][e]
 end
 
 # A custom `Integer` subtype to store an integer as its prime factorization
@@ -59,16 +51,16 @@ PrimeFactorization(powers::Vector{U}) where {U<:Unsigned} =
     PrimeFactorization{U}(powers, one(Int8))
 
 # define our own factor function, returning an instance of PrimeFactorization
-function primefactor(n::Integer)
+function primefactor(cache::WignerCache, n::Integer)
     iszero(n) && return PrimeFactorization(UInt8[], zero(Int8))
     sn = n < 0 ? -one(Int8) : one(Int8)
     n = abs(n)
-    m = length(factortable)
+    m = length(cache.factortable)
     while m < abs(n)
         m += 1
         powers = UInt8[] # should be sufficient for all integers up to 2^255
         a = m
-        for p in primes()
+        for p in primes(cache)
             f = 0
             anext, r = divrem(a, p)
             while r == 0
@@ -79,18 +71,18 @@ function primefactor(n::Integer)
             push!(powers, f)
             a == 1 && break
         end
-        push!(factortable, powers)
+        push!(cache.factortable, powers)
     end
-    @inbounds return PrimeFactorization(copy(factortable[n]), sn)
+    @inbounds return PrimeFactorization(copy(cache.factortable[n]), sn)
 end
 
-function primefactorial(n::Integer)
+function primefactorial(cache::WignerCache, n::Integer)
     n < 0 && throw(DomainError(n))
-    m = length(factorialtable)-1
+    m = length(cache.factorialtable)-1
     @inbounds while m < n
-        prevfactorial = factorialtable[m+1]
+        prevfactorial = cache.factorialtable[m+1]
         m += 1
-        f = primefactor(m).powers
+        f = primefactor(cache, m).powers
         powers = copy(prevfactorial)
         if length(f) > length(powers) # can at most be 1 larger
             push!(powers, 0)
@@ -98,9 +90,9 @@ function primefactorial(n::Integer)
         for k = 1:length(f)
             powers[k] += f[k]
         end
-        push!(factorialtable, powers)
+        push!(cache.factorialtable, powers)
     end
-    @inbounds return PrimeFactorization(copy(factorialtable[n+1]))
+    @inbounds return PrimeFactorization(copy(cache.factorialtable[n+1]))
 end
 
 # Methods for PrimeFactorization:
@@ -114,12 +106,13 @@ Base.zero(::Type{PrimeFactorization{U}}) where {U<:Unsigned} =
 Base.promote_rule(P::Type{<:PrimeFactorization},::Type{<:Integer}) = P
 Base.promote_rule(P::Type{<:PrimeFactorization},::Type{BigInt}) = BigInt
 
-Base.convert(P::Type{<:PrimeFactorization}, n::Integer) = convert(P, primefactor(n))
-function Base.convert(::Type{BigInt}, a::PrimeFactorization)
+Base.convert(cache::WignerCache, P::Type{<:PrimeFactorization}, 
+    n::Integer) = convert(P, primefactor(cache, n))
+function Base.convert(cache::WignerCache, T::Type{BigInt}, a::PrimeFactorization)
     A = one(BigInt)
     for (n, e) in enumerate(a.powers)
         if !iszero(e)
-            MPZ.mul!(A, bigprime(n, e))
+            MPZ.mul!(A, bigprime(cache, n, e))
         end
     end
     return a.sign < 0 ? MPZ.neg!(A) : A
@@ -227,7 +220,7 @@ function commondenominator!(nums::Vector{P}, dens::Vector{P}) where {P<:PrimeFac
 end
 
 # auxiliary function to compute sums of a list of PrimeFactorizations as quickly as possible
-function sumlist!(list::Vector{<:PrimeFactorization}, ind = 1:length(list))
+function sumlist!(cache::WignerCache, list::Vector{<:PrimeFactorization}, ind = 1:length(list))
     # first compute gcd to take out common factors
     g = PrimeFactorization(copy(list[ind[1]].powers))
     for k in ind
@@ -239,15 +232,15 @@ function sumlist!(list::Vector{<:PrimeFactorization}, ind = 1:length(list))
     L = length(ind)
     if L > 32
         l = L >> 1
-        s = sumlist!(list, first(ind).+(0:l-1)) + sumlist!(list, first(ind).+(l:L-1))
+        s = sumlist!(cache, list, first(ind).+(0:l-1)) + sumlist!(cache, list, first(ind).+(l:L-1))
     else
         # do sum
         s = big(0)
         for k in ind
-            MPZ.add!(s, convert(BigInt, list[k]))
+            MPZ.add!(s, convert(cache, BigInt, list[k]))
         end
     end
-    return MPZ.mul!(s, convert(BigInt, g))
+    return MPZ.mul!(s, convert(cache, BigInt, g))
 end
 
 # Mutating vector methods that also grow and shrink as required

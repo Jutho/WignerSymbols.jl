@@ -106,9 +106,9 @@ Base.zero(::Type{PrimeFactorization{U}}) where {U<:Unsigned} =
 Base.promote_rule(P::Type{<:PrimeFactorization},::Type{<:Integer}) = P
 Base.promote_rule(P::Type{<:PrimeFactorization},::Type{BigInt}) = BigInt
 
-Base.convert(cache::WignerCache, P::Type{<:PrimeFactorization}, 
-    n::Integer) = convert(P, primefactor(cache, n))
-function Base.convert(cache::WignerCache, T::Type{BigInt}, a::PrimeFactorization)
+_convert(cache::WignerCache, P::Type{<:PrimeFactorization}, 
+    n::Integer) = _convert(P, primefactor(cache, n))
+function _convert(cache::WignerCache, T::Type{BigInt}, a::PrimeFactorization)
     A = one(BigInt)
     for (n, e) in enumerate(a.powers)
         if !iszero(e)
@@ -237,10 +237,10 @@ function sumlist!(cache::WignerCache, list::Vector{<:PrimeFactorization}, ind = 
         # do sum
         s = big(0)
         for k in ind
-            MPZ.add!(s, convert(cache, BigInt, list[k]))
+            MPZ.add!(s, _convert(cache, BigInt, list[k]))
         end
     end
-    return MPZ.mul!(s, convert(cache, BigInt, g))
+    return MPZ.mul!(s, _convert(cache, BigInt, g))
 end
 
 # Mutating vector methods that also grow and shrink as required

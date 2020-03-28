@@ -52,7 +52,7 @@ function Δ(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃)
     n, d = Δ²(cache, j₁, j₂, j₃)
     return convert(T, 
         signedroot(RationalRoot{BigInt}, 
-            convert(cache, BigInt, n)//convert(cache, BigInt, d)))
+            _convert(cache, BigInt, n)//_convert(cache, BigInt, d)))
 end
 
 """
@@ -106,8 +106,8 @@ function wigner3j(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃, m₁, m
 
         snum, rnum = splitsquare(s1n*s2n)
         sden, rden = splitsquare(s1d)
-        s = convert(cache, BigInt, snum) // convert(cache, BigInt, sden)
-        r = convert(cache, BigInt, rnum) // convert(cache, BigInt, rden)
+        s = _convert(cache, BigInt, snum) // _convert(cache, BigInt, sden)
+        r = _convert(cache, BigInt, rnum) // _convert(cache, BigInt, rden)
         s *= compute3jseries(cache, β₁, β₂, β₃, α₁, α₂)
         cache.Wigner3j[(β₁, β₂, β₃, α₁, α₂)] = (r,s)
     end
@@ -211,8 +211,8 @@ function wigner6j(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃, j₄, j
         sden, rden = splitsquare(d₁ * d₂ * d₃ * d₄)
         snu, sden = divgcd!(snum, sden)
         rnu, rden = divgcd!(rnum, rden)
-        s = convert(cache, BigInt, snum) // convert(cache, BigInt, sden)
-        r = convert(cache, BigInt, rnum) // convert(cache, BigInt, rden)
+        s = _convert(cache, BigInt, snum) // _convert(cache, BigInt, sden)
+        r = _convert(cache, BigInt, rnum) // _convert(cache, BigInt, rden)
         s *= compute6jseries(cache, β₁, β₂, β₃, α₁, α₂, α₃, α₄)
 
         cache.Wigner6j[(β₁, β₂, β₃, α₁, α₂, α₃)] = (r, s)
@@ -311,7 +311,7 @@ function compute3jseries(cache::WignerCache, β₁, β₂, β₃, α₁, α₂)
     end
     den = commondenominator!(nums, dens)
     totalnum = sumlist!(cache, nums)
-    totalden = convert(cache, BigInt, den)
+    totalden = _convert(cache, BigInt, den)
     return totalnum//totalden
 end
 
@@ -331,7 +331,7 @@ function compute6jseries(cache::WignerCache, β₁, β₂, β₃, α₁, α₂, 
     end
     den = commondenominator!(nums, dens)
     totalnum = sumlist!(cache, nums)
-    totalden = convert(cache, BigInt, den)
+    totalden = _convert(cache, BigInt, den)
     return totalnum//totalden
 end
 

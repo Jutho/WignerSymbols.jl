@@ -35,7 +35,7 @@ function bigprime(cache::WignerCache, n::Integer, e::Integer=1)
     @inbounds while l < e
         # compute next prime power as approximate square of existing results
         k = (l+1)>>1
-        push!(cache.bigprimetable[n], 
+        push!(cache.bigprimetable[n],
               cache.bigprimetable[n][k] * cache.bigprimetable[n][l+1-k])
         l += 1
     end
@@ -106,7 +106,7 @@ Base.zero(::Type{PrimeFactorization{U}}) where {U<:Unsigned} =
 Base.promote_rule(P::Type{<:PrimeFactorization},::Type{<:Integer}) = P
 Base.promote_rule(P::Type{<:PrimeFactorization},::Type{BigInt}) = BigInt
 
-_convert(cache::WignerCache, P::Type{<:PrimeFactorization}, 
+_convert(cache::WignerCache, P::Type{<:PrimeFactorization},
     n::Integer) = _convert(P, primefactor(cache, n))
 function _convert(cache::WignerCache, T::Type{BigInt}, a::PrimeFactorization)
     A = one(BigInt)

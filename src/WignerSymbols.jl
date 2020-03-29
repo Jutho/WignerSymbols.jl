@@ -9,11 +9,24 @@ const RRBig = RationalRoot{BigInt}
 import RationalRoots: _convert
 
 include("wignercache.jl")
+
+# imitating Base.Random.THREAD_RNGs, initialize new caches on each thread
+const wigner_caches = WignerCache[]
+@inline get_local_cache() = get_local_cache(Threads.threadid())
+@noinline function get_local_cache(tid::Int)
+    @assert 0 < tid <= length(wigner_caches)
+    if @inbounds isassigned(wigner_caches, tid)
+        @inbounds cache = wigner_caches[tid]
+    else
+        cache = WignerCache()
+        @inbounds wigner_caches[tid] = cache
+    end
+    return cache
+end
+
 function __init__()
-    global default_cache
-    # rehash global dictionaries for precompile
-    Base.rehash!(default_cache.Wigner3j)
-    Base.rehash!(default_cache.Wigner6j)
+    global wigner_caches
+    resize!(empty!(wigner_caches), Threads.nthreads())
 end
 
 include("primefactorization.jl")
@@ -40,7 +53,7 @@ as a type `T` real number.
 Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisfied, but
 throws a `DomainError` if the `jᵢ`s are not (half)integer
 """
-Δ(j₁, j₂, j₃) = Δ(default_cache, RRBig, j₁, j₂, j₃)
+Δ(j₁, j₂, j₃) = Δ(get_local_cache(), RRBig, j₁, j₂, j₃)
 Δ(cache::WignerCache, j₁, j₂, j₃) = Δ(cache, RRBig, j₁, j₂, j₃)
 function Δ(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃)
     for jᵢ in (j₁, j₂, j₃)
@@ -50,8 +63,8 @@ function Δ(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃)
         return zero(T)
     end
     n, d = Δ²(cache, j₁, j₂, j₃)
-    return convert(T, 
-        signedroot(RationalRoot{BigInt}, 
+    return convert(T,
+        signedroot(RationalRoot{BigInt},
             _convert(cache, BigInt, n)//_convert(cache, BigInt, d)))
 end
 
@@ -67,9 +80,9 @@ Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisf
 throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
 """
 wigner3j(j₁::Integer, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = wigner3j(
-    default_cache, RRBig, j₁, j₂, j₃, m₁, m₂, m₃)
+    get_local_cache(), RRBig, j₁, j₂, j₃, m₁, m₂, m₃)
 wigner3j(T::Type{<:Real}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = wigner3j(
-    default_cache, T, j₁, j₂, j₃, m₁, m₂, m₃)
+    get_local_cache(), T, j₁, j₂, j₃, m₁, m₂, m₃)
 wigner3j(cache::WignerCache, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = wigner3j(
     cache, RRBig, j₁, j₂, j₃, m₁, m₂, m₃)
 function wigner3j(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
@@ -99,9 +112,8 @@ function wigner3j(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃, m₁, m
         r, s = cache.Wigner3j[(β₁, β₂, β₃, α₁, α₂)]
     else
         s1n, s1d = Δ²(cache, j₁, j₂, j₃)
-        primefactorial_(n) = primefactorial(cache, n)
         s2n = (
-            primefactorial(cache, β₂) * primefactorial(cache, β₁ - α₁) * primefactorial(cache, β₁ - α₂) * 
+            primefactorial(cache, β₂) * primefactorial(cache, β₁ - α₁) * primefactorial(cache, β₁ - α₂) *
             primefactorial(cache, β₃) * primefactorial(cache, β₃ - α₁) * primefactorial(cache, β₂ - α₂))
 
         snum, rnum = splitsquare(s1n*s2n)
@@ -111,7 +123,7 @@ function wigner3j(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃, m₁, m
         s *= compute3jseries(cache, β₁, β₂, β₃, α₁, α₂)
         cache.Wigner3j[(β₁, β₂, β₃, α₁, α₂)] = (r,s)
     end
-    return _convert(T, sgn*s)*convert(T, signedroot(r))
+    return convert(T, sgn*s)*convert(T, signedroot(r))
 end
 
 """
@@ -124,7 +136,7 @@ Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisf
 throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
 """
 clebschgordan(j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) =
-    clebschgordan(default_cache, RRBig, j₁, m₁, j₂, m₂, j₃, m₃)
+    clebschgordan(get_local_cache(), RRBig, j₁, m₁, j₂, m₂, j₃, m₃)
 clebschgordan(cache::WignerCache, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) =
     clebschgordan(cache, RRBig, j₁, m₁, j₂, m₂, j₃, m₃)
 function clebschgordan(cache::WignerCache, T::Type{<:Real}, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂)
@@ -146,7 +158,7 @@ Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisf
 throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(mᵢ) > jᵢ`.
 """
 racahV(j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = racahV(
-    default_cache, RRBig, j₁, j₂, j₃, m₁, m₂, m₃)
+    get_local_cache(), RRBig, j₁, j₂, j₃, m₁, m₂, m₃)
 racahV(cache::WignerCache, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = racahV(
     cache, RRBig, j₁, j₂, j₃, m₁, m₂, m₃)
 function racahV(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
@@ -166,8 +178,8 @@ Returns `zero(T)` if any of triangle conditions `δ(j₁, j₂, j₃)`, `δ(j₁
 `δ(j₂, j₄, j₆)`, `δ(j₃, j₄, j₅)` are not satisfied, but throws a `DomainError` if
 the `jᵢ`s are not integer or halfinteger.
 """
-wigner6j(j₁, j₂, j₃, j₄, j₅, j₆) = wigner6j(default_cache, RRBig, j₁, j₂, j₃, j₄, j₅, j₆)
-wigner6j(T::Type{<:Real}, j₁, j₂, j₃, j₄, j₅, j₆) = wigner6j(default_cache, T, j₁, j₂, j₃, j₄, j₅, j₆)
+wigner6j(j₁, j₂, j₃, j₄, j₅, j₆) = wigner6j(get_local_cache(), RRBig, j₁, j₂, j₃, j₄, j₅, j₆)
+wigner6j(T::Type{<:Real}, j₁, j₂, j₃, j₄, j₅, j₆) = wigner6j(get_local_cache(), T, j₁, j₂, j₃, j₄, j₅, j₆)
 wigner6j(cache::WignerCache, j₁, j₂, j₃, j₄, j₅, j₆) = wigner6j(cache, RRBig, j₁, j₂, j₃, j₄, j₅, j₆)
 function wigner6j(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃, j₄, j₅, j₆)
     # check validity of `jᵢ`s
@@ -232,7 +244,7 @@ Returns `zero(T)` if any of triangle conditions `δ(j₁, j₂, J₁₂)`, `δ(j
 the `jᵢ`s and `J`s are not integer or halfinteger.
 """
 racahW(j₁, j₂, J, j₃, J₁₂, J₂₃) = racahW(
-    default_cache, RRBig, j₁, j₂, J, j₃, J₁₂, J₂₃)
+    get_local_cache(), RRBig, j₁, j₂, J, j₃, J₁₂, J₂₃)
 racahW(cache::WignerCache, j₁, j₂, J, j₃, J₁₂, J₂₃) = racahW(
     cache, RRBig, j₁, j₂, J, j₃, J₁₂, J₂₃)
 function racahW(cache::WignerCache, T::Type{<:Real}, j₁, j₂, J, j₃, J₁₂, J₂₃)

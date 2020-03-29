@@ -1,6 +1,7 @@
 
+abstract type AbstractWignerCache end
 
-struct WignerCache
+struct WignerCache <: AbstractWignerCache
     Wigner3j::Dict{Tuple{UInt,UInt,UInt,Int,Int},Tuple{Rational{BigInt},Rational{BigInt}}}
     Wigner6j::Dict{NTuple{6,UInt},Tuple{Rational{BigInt},Rational{BigInt}}}
 
@@ -27,6 +28,3 @@ function WignerCache()
     cache.bigprimetable[3][1] = big(5)
     return cache
 end
-
-default_cache = WignerCache()
-

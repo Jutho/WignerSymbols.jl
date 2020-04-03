@@ -50,18 +50,19 @@ function test_threaded(n::Int, caches)
 end
 
 maxj = 120
-@time println("standard       ", test_serial(maxj))
+@time println("default serial:  ", test_serial(maxj))
 GC.gc()
-@time println("bounded cache: ", test_bounded(maxj))
+@time println("bounded serial:  ", test_bounded(maxj))
 GC.gc()
 
 caches = setup_caches(maxj)
-@time println("threaded:      ", test_threaded(maxj, caches))
+@time println("bounded thread:  ", test_threaded(maxj, caches))
 GC.gc()
 
 caches = setup_caches(maxj)
 GC.enable(false)
-@time println("thread no GC:  ", test_threaded(maxj, caches))
+@time println("thread no GC:    ", test_threaded(maxj, caches))
 GC.enable(true)
 GC.gc()
+
 ##

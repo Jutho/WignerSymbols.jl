@@ -8,10 +8,6 @@ using RationalRoots
 const RRBig = RationalRoot{BigInt}
 import RationalRoots: _convert
 
-# debug stuff
-using TimerOutputs
-const to = TimerOutput()
-
 include("wignercache.jl")
 include("primefactorization.jl")
 include("boundedcache.jl")
@@ -319,16 +315,16 @@ function compute3jseries(cache::WignerCache, β₁, β₂, β₃, α₁, α₂)
 
     nums = Vector{T}(undef, length(krange))
     dens = Vector{T}(undef, length(krange))
-    @timeit to "3jseries k loop" for (i, k) in enumerate(krange)
+    for (i, k) in enumerate(krange)
         num = iseven(k) ? one(T) : -one(T)
         den = primefactorial(cache, k)*primefactorial(cache, k-α₁)*
             primefactorial(cache, k-α₂)*primefactorial(cache, β₁-k)*
             primefactorial(cache, β₂-k)*primefactorial(cache, β₃-k)
         nums[i], dens[i] = divgcd!(num, den)
     end
-    @timeit to "commondenominator!" den = commondenominator!(nums, dens)
-    @timeit to "totalnum" totalnum = sumlist!(cache, nums)
-    @timeit to "totalden" totalden = _convert(cache, BigInt, den)
+    den = commondenominator!(nums, dens)
+    totalnum = sumlist!(cache, nums)
+    totalden = _convert(cache, BigInt, den)
     return totalnum//totalden
 end
 

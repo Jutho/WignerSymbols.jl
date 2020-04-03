@@ -1,9 +1,3 @@
-"""
-TODO:
-* sumlist! and bigprime still allocate
-* convenience function for mul_primefactorial for a bunch of numbers 
-"""
-
 
 isnonzero(x::T) where {T<:Integer} = (x != zero(T))
 function get_last_nonzero(vec::Vector{T}) where T
@@ -46,12 +40,14 @@ struct BoundedWignerCache <: AbstractWignerCache
     denbuf::StaticPrimeFactorization{UInt32}
 
     # buffers for r and s calculations. s1n and s1d use numbuf and denbuf.
-    s2n::StaticPrimeFactorization{UInt32}
+    s2n::StaticPrimeFactorization{UInt32}  # s2n is reused for sumlist
     snum::StaticPrimeFactorization{UInt32}
     rnum::StaticPrimeFactorization{UInt32}
     sden::StaticPrimeFactorization{UInt32}
     rden::StaticPrimeFactorization{UInt32}
 end
+
+factorbuffer(nfact) = StaticPrimeFactorization(zeros(UInt32, nfact), one(Int8),1)
 
 
 """
@@ -72,16 +68,16 @@ function BoundedWignerCache(max_j::T; nj=3) where {T <: Integer}
         [UInt32[], UInt32[], UInt32[1], UInt32[1,1], UInt32[3,1], UInt32[3,1,1]],
         [[big(2)], [big(3)], [big(5)]],
         Ref{BigInt}(big(1)),
-        [StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1) for i in 1:maxt],
-        [StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1) for i in 1:maxt],
-        StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1),
-        StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1),
+        [factorbuffer(maxfactorial) for i in 1:maxt],  # nums
+        [factorbuffer(maxfactorial) for i in 1:maxt],  # dens
+        factorbuffer(maxfactorial),  # numbuf
+        factorbuffer(maxfactorial),  # denbuf
 
-        StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1),
-        StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1),
-        StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1),
-        StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1),
-        StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1)
+        factorbuffer(maxfactorial),  # s2n
+        factorbuffer(maxfactorial),  # snum 
+        factorbuffer(maxfactorial),  # rnum
+        factorbuffer(maxfactorial),  # sden
+        factorbuffer(maxfactorial)   # rden
     )
     return cache
 end
@@ -116,6 +112,17 @@ function mul_primefactorial!(cache::BoundedWignerCache,
         fact_dest.powers[i] += row[i]
     end
     fact_dest.last_nonzero_index = max(length(row), fact_dest.last_nonzero_index)
+    return
+end
+
+"""
+Convenience function for multiplying together a bunch of primefactorials in a buffer.
+"""
+function mul_primefactorial!(cache::BoundedWignerCache, 
+    fact_dest::AbstractPrimeFactorization{T}, ns::NTuple{N, Integer}) where {T, N}
+    for n in ns
+        mul_primefactorial!(cache, fact_dest, n)
+    end
     return
 end
 
@@ -212,7 +219,7 @@ end
 function _convert(cache::BoundedWignerCache, T::Type{BigInt}, a::StaticPrimeFactorization)
     A = one(BigInt)
     # for (n, e) in enumerate(a.powers)
-    for n in 1:a.last_nonzero_index
+    @inbounds for n in 1:a.last_nonzero_index
         e = a.powers[n]
         if !iszero(e)
             MPZ.mul!(A, bigprime(cache, n, e))
@@ -225,15 +232,24 @@ end
 function sumlist!(cache::BoundedWignerCache, list::Vector{P}, 
         ind = 1:length(list)) where {P <: StaticPrimeFactorization}
     # first compute gcd to take out common factors
-    g = StaticPrimeFactorization(
-        copy(list[ind[1]].powers[1:list[ind[1]].last_nonzero_index]), one(Int8), 
-        list[ind[1]].last_nonzero_index)
-    for k in ind
+    g = cache.snum
+    one!(g, 1)
+    first_p = list[ind[1]]
+    @inbounds for i in 1:first_p.last_nonzero_index
+        g.powers[i] = first_p.powers[i]
+    end
+    g.last_nonzero_index = first_p.last_nonzero_index
+    # g = StaticPrimeFactorization(
+    #     cache.snum.powers[1:list[ind[1]].last_nonzero_index], one(Int8), 
+    #     list[ind[1]].last_nonzero_index)
+    # cache.snum.last_nonzero_index = list[ind[1]].last_nonzero_index
+    @inbounds for k in ind
         _vmin!(g, list[k])
     end
-    for k in ind
+    @inbounds for k in ind
         _vsub!(list[k], g)
     end
+    gint = _convert(cache, BigInt, g)
     L = length(ind)
     if L > 32
         l = L >> 1
@@ -246,7 +262,7 @@ function sumlist!(cache::BoundedWignerCache, list::Vector{P},
             MPZ.add!(s, _convert(cache, BigInt, list[k]))
         end
     end
-    return MPZ.mul!(s, _convert(cache, BigInt, g))
+    return MPZ.mul!(s, gint)
 end
 
 
@@ -256,9 +272,11 @@ function Δ²!(cache::BoundedWignerCache, s1n::T, s1d::T,
     # also checks the triangle conditions by converting to unsigned integer:
     
     one!(s1n, 1)
-    mul_primefactorial!(cache, s1n, convert(UInt, + j₁ + j₂ - j₃) )
-    mul_primefactorial!(cache, s1n, convert(UInt, + j₁ - j₂ + j₃) )
-    mul_primefactorial!(cache, s1n, convert(UInt, - j₁ + j₂ + j₃) )
+    mul_primefactorial!(cache, s1n, (
+        convert(UInt, + j₁ + j₂ - j₃),
+        convert(UInt, + j₁ - j₂ + j₃),
+        convert(UInt, - j₁ + j₂ + j₃))
+    )
 
     one!(s1d, 1)
     mul_primefactorial!(cache, s1d, convert(UInt, j₁ + j₂ + j₃ + 1) )
@@ -273,26 +291,19 @@ function compute3jseries(cache::BoundedWignerCache, β₁, β₂, β₃, α₁, 
 
     nums = cache.nums
     dens = cache.dens
-    @timeit to "3jseries k loop" for (i, k) in enumerate(krange)
+    for (i, k) in enumerate(krange)
         num = nums[i]
         den = dens[i]
         one!(num, iseven(k) ? 1 : -1)
         one!(den, 1)
-
-        mul_primefactorial!(cache, den, k)
-        mul_primefactorial!(cache, den, k-α₁)
-        mul_primefactorial!(cache, den, k-α₂)
-        mul_primefactorial!(cache, den, β₁-k)
-        mul_primefactorial!(cache, den, β₂-k)
-        mul_primefactorial!(cache, den, β₃-k)
-
+        mul_primefactorial!(cache, den, (k, k-α₁, k-α₂, β₁-k, β₂-k, β₃-k))
         # divgcd!(cache, num, den)
     end
 
      # write gcd to buffer
-    @timeit to "commondenominator!" commondenominator!(cache, nums, dens, numk) 
-    @timeit to "totalden" totalden = _convert(cache, BigInt, cache.denbuf)
-    @timeit to "totalnum" totalnum = sumlist!(cache, nums[1:numk])
+    commondenominator!(cache, nums, dens, numk) 
+    totalden = _convert(cache, BigInt, cache.denbuf)
+    totalnum = sumlist!(cache, nums[1:numk])
     return totalnum//totalden
 end
 
@@ -342,23 +353,18 @@ function wigner3j(cache::BoundedWignerCache, T::Type{<:Real}, j₁, j₂, j₃, 
     if haskey(cache.Wigner3j, (β₁, β₂, β₃, α₁, α₂))
         r, s = cache.Wigner3j[(β₁, β₂, β₃, α₁, α₂)]
     else
-
         s1n, s1d = cache.numbuf, cache.denbuf
         s2n, snum, rnum, sden, rden = cache.s2n, cache.snum, cache.rnum, cache.sden, cache.rden
 
         Δ²!(cache, s1n, s1d, j₁, j₂, j₃)
+        
         splitsquare!(sden, rden, s1d)
-
         one!(s2n, 1)
-        mul_primefactorial!(cache, s2n, β₂)
-        mul_primefactorial!(cache, s2n, β₁ - α₁)
-        mul_primefactorial!(cache, s2n, β₁ - α₂)
-        mul_primefactorial!(cache, s2n, β₃)
-        mul_primefactorial!(cache, s2n, β₃ - α₁)
-        mul_primefactorial!(cache, s2n, β₂ - α₂)
-
+        mul_primefactorial!(cache, s2n, (β₂, β₁ - α₁, β₁ - α₂, β₃, β₃ - α₁, β₂ - α₂))
         s2n_mul_s1n = _vadd!(s1n, s2n)
         splitsquare!(snum, rnum, s2n_mul_s1n)
+
+        
         s = _convert(cache, BigInt, snum) // _convert(cache, BigInt, sden)
         r = _convert(cache, BigInt, rnum) // _convert(cache, BigInt, rden)
 

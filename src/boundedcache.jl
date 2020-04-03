@@ -1,3 +1,8 @@
+"""
+TODO:
+* sumlist! and bigprime still allocate
+* convenience function for mul_primefactorial for a bunch of numbers 
+"""
 
 
 isnonzero(x::T) where {T<:Integer} = (x != zero(T))
@@ -39,6 +44,13 @@ struct BoundedWignerCache <: AbstractWignerCache
     # prime factorization buffers
     numbuf::StaticPrimeFactorization{UInt32}
     denbuf::StaticPrimeFactorization{UInt32}
+
+    # buffers for r and s calculations. s1n and s1d use numbuf and denbuf.
+    s2n::StaticPrimeFactorization{UInt32}
+    snum::StaticPrimeFactorization{UInt32}
+    rnum::StaticPrimeFactorization{UInt32}
+    sden::StaticPrimeFactorization{UInt32}
+    rden::StaticPrimeFactorization{UInt32}
 end
 
 
@@ -62,6 +74,12 @@ function BoundedWignerCache(max_j::T; nj=3) where {T <: Integer}
         Ref{BigInt}(big(1)),
         [StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1) for i in 1:maxt],
         [StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1) for i in 1:maxt],
+        StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1),
+        StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1),
+
+        StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1),
+        StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1),
+        StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1),
         StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1),
         StaticPrimeFactorization(zeros(UInt32, maxfactorial), one(Int8),1)
     )
@@ -143,6 +161,8 @@ function _vsub!(a::StaticPrimeFactorization{U},
         af[k] -= bf[k]
     end
     a.last_nonzero_index = max(a.last_nonzero_index, b.last_nonzero_index)
+
+    return a
 end
 
 function _vadd!(a::StaticPrimeFactorization{U}, 
@@ -153,6 +173,8 @@ function _vadd!(a::StaticPrimeFactorization{U},
         af[k] = +(af[k], bf[k])
     end
     a.last_nonzero_index = max(a.last_nonzero_index, b.last_nonzero_index)
+
+    return a
 end
 
 
@@ -229,19 +251,17 @@ end
 
 
 # squared triangle coefficient
-function Δ²(cache::BoundedWignerCache, j₁, j₂, j₃)
+function Δ²!(cache::BoundedWignerCache, s1n::T, s1d::T, 
+        j₁, j₂, j₃) where T <: StaticPrimeFactorization
     # also checks the triangle conditions by converting to unsigned integer:
-    num = cache.numbuf
-    one!(num, 1)
-    mul_primefactorial!(cache, num, convert(UInt, + j₁ + j₂ - j₃) )
-    mul_primefactorial!(cache, num, convert(UInt, + j₁ - j₂ + j₃) )
-    mul_primefactorial!(cache, num, convert(UInt, - j₁ + j₂ + j₃) )
+    
+    one!(s1n, 1)
+    mul_primefactorial!(cache, s1n, convert(UInt, + j₁ + j₂ - j₃) )
+    mul_primefactorial!(cache, s1n, convert(UInt, + j₁ - j₂ + j₃) )
+    mul_primefactorial!(cache, s1n, convert(UInt, - j₁ + j₂ + j₃) )
 
-    den = cache.denbuf
-    one!(den, 1)
-    mul_primefactorial!(cache, den, convert(UInt, j₁ + j₂ + j₃ + 1) )
-    # result
-    return num, den
+    one!(s1d, 1)
+    mul_primefactorial!(cache, s1d, convert(UInt, j₁ + j₂ + j₃ + 1) )
 end
 
 # compute the sum appearing in the 3j symbol
@@ -276,6 +296,23 @@ function compute3jseries(cache::BoundedWignerCache, β₁, β₂, β₃, α₁, 
     return totalnum//totalden
 end
 
+function splitsquare!(s::T, r::T, a::T) where {T <: StaticPrimeFactorization}
+
+    one!(r, a.sign)
+    for i in 1:a.last_nonzero_index
+        r.powers[i] = convert(UInt8, isodd(a.powers[i]))
+    end
+
+    one!(s, 1)
+    for i in 1:a.last_nonzero_index
+        s.powers[i] = (a.powers[i])>>1
+    end
+
+    # maybe this bound could be improved
+    r.last_nonzero_index = a.last_nonzero_index
+    s.last_nonzero_index = a.last_nonzero_index
+end
+
 
 wigner3j(cache::BoundedWignerCache, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = wigner3j(
     cache, RRBig, j₁, j₂, j₃, m₁, m₂, m₃)
@@ -306,14 +343,22 @@ function wigner3j(cache::BoundedWignerCache, T::Type{<:Real}, j₁, j₂, j₃, 
         r, s = cache.Wigner3j[(β₁, β₂, β₃, α₁, α₂)]
     else
 
-        s1n, s1d = Δ²(cache, j₁, j₂, j₃)
-        s2n = (
-            primefactorial(cache, β₂) * primefactorial(cache, β₁ - α₁) * primefactorial(cache, β₁ - α₂) *
-            primefactorial(cache, β₃) * primefactorial(cache, β₃ - α₁) * primefactorial(cache, β₂ - α₂))
+        s1n, s1d = cache.numbuf, cache.denbuf
+        s2n, snum, rnum, sden, rden = cache.s2n, cache.snum, cache.rnum, cache.sden, cache.rden
 
-        snum, rnum = splitsquare(s1n*s2n)
-        sden, rden = splitsquare(s1d)
+        Δ²!(cache, s1n, s1d, j₁, j₂, j₃)
+        splitsquare!(sden, rden, s1d)
 
+        one!(s2n, 1)
+        mul_primefactorial!(cache, s2n, β₂)
+        mul_primefactorial!(cache, s2n, β₁ - α₁)
+        mul_primefactorial!(cache, s2n, β₁ - α₂)
+        mul_primefactorial!(cache, s2n, β₃)
+        mul_primefactorial!(cache, s2n, β₃ - α₁)
+        mul_primefactorial!(cache, s2n, β₂ - α₂)
+
+        s2n_mul_s1n = _vadd!(s1n, s2n)
+        splitsquare!(snum, rnum, s2n_mul_s1n)
         s = _convert(cache, BigInt, snum) // _convert(cache, BigInt, sden)
         r = _convert(cache, BigInt, rnum) // _convert(cache, BigInt, rden)
 

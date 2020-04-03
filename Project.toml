@@ -4,20 +4,21 @@ authors = ["Jutho Haegeman"]
 version = "1.1.0"
 
 [deps]
-RationalRoots = "308eb6b3-cc68-5ff3-9e97-c3c4da4fa681"
 HalfIntegers = "f0d1745a-41c9-11e9-1dd9-e5d34d218721"
 Primes = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
+RationalRoots = "308eb6b3-cc68-5ff3-9e97-c3c4da4fa681"
+TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]
-RationalRoots = "0.1"
 HalfIntegers = "1.0"
 Primes = "0.4"
+RationalRoots = "0.1"
 julia = "1"
 
 [extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test", "LinearAlgebra", "Random"]

@@ -122,6 +122,7 @@ function wigner3j(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃, m₁, m
 
         snum, rnum = splitsquare(s1n*s2n)
         sden, rden = splitsquare(s1d)
+
         s = _convert(cache, BigInt, snum) // _convert(cache, BigInt, sden)
         r = _convert(cache, BigInt, rnum) // _convert(cache, BigInt, rden)
         s *= compute3jseries(cache, β₁, β₂, β₃, α₁, α₂)

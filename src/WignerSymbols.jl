@@ -1,14 +1,20 @@
 __precompile__(true)
 module WignerSymbols
-export δ, Δ, clebschgordan, wigner3j, wigner6j, racahV, racahW, HalfInteger, WignerCache
-
+export δ, Δ, clebschgordan, wigner3j, wigner6j, racahV, racahW, HalfInteger
+export WignerCache, BoundedWignerCache
 using Base.GMP.MPZ
 using HalfIntegers
 using RationalRoots
 const RRBig = RationalRoot{BigInt}
 import RationalRoots: _convert
 
+# debug stuff
+using TimerOutputs
+const to = TimerOutput()
+
 include("wignercache.jl")
+include("primefactorization.jl")
+include("boundedcache.jl")
 
 # imitating Base.Random.THREAD_RNGs, initialize new caches on each thread
 const wigner_caches = WignerCache[]
@@ -28,8 +34,6 @@ function __init__()
     global wigner_caches
     resize!(empty!(wigner_caches), Threads.nthreads())
 end
-
-include("primefactorization.jl")
 
 # check integerness and correctness of (j,m) angular momentum
 ϵ(j, m) = (abs(m) <= j && ishalfinteger(j) && isinteger(j-m) && isinteger(j+m))
@@ -96,7 +100,7 @@ function wigner3j(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃, m₁, m
     end
 
     # we reorder such that j₁ >= j₂ >= j₃ and m₁ >= 0 or m₁ == 0 && m₂ >= 0
-    j₁, j₂, j₃, m₁, m₂, m₃, sgn = reorder3j(cache, j₁, j₂, j₃, m₁, m₂, m₃)
+    j₁, j₂, j₃, m₁, m₂, m₃, sgn = reorder3j(j₁, j₂, j₃, m₁, m₂, m₃)
     # TODO: do we also want to use Regge symmetries?
     α₁ = convert(Int, j₂ - m₁ - j₃ ) # can be negative
     α₂ = convert(Int, j₁ + m₂ - j₃ ) # can be negative
@@ -259,7 +263,7 @@ end
 # COMPUTATIONAL ROUTINES
 #------------------------
 # squared triangle coefficient
-function Δ²(cache::WignerCache, j₁, j₂, j₃)
+function Δ²(cache::AbstractWignerCache, j₁, j₂, j₃)
     # also checks the triangle conditions by converting to unsigned integer:
     n1 = primefactorial(cache, convert(UInt, + j₁ + j₂ - j₃) )
     n2 = primefactorial(cache, convert(UInt, + j₁ - j₂ + j₃) )
@@ -271,15 +275,15 @@ end
 
 # reorder parameters determining the 3j symbol to canonical order:
 # j₁ >= j₂ >= j₃ and m₁ >= 0 or m₁ == 0 && m₂ >= 0
-function reorder3j(cache::WignerCache, j₁, j₂, j₃, m₁, m₂, m₃, sign = one(Int8))
+function reorder3j(j₁, j₂, j₃, m₁, m₂, m₃, sign = one(Int8))
     if j₁ < j₂
-        return reorder3j(cache, j₂, j₁, j₃, m₂, m₁, m₃, -sign)
+        return reorder3j(j₂, j₁, j₃, m₂, m₁, m₃, -sign)
     elseif j₂ < j₃
-        return reorder3j(cache, j₁, j₃, j₂, m₁, m₃, m₂, -sign)
+        return reorder3j(j₁, j₃, j₂, m₁, m₃, m₂, -sign)
     elseif m₁ < zero(m₁)
-        return reorder3j(cache, j₁, j₂, j₃, -m₁, -m₂, -m₃, -sign)
+        return reorder3j(j₁, j₂, j₃, -m₁, -m₂, -m₃, -sign)
     elseif iszero(m₁) && m₂ < zero(m₂)
-        return reorder3j(cache, j₁, j₂, j₃, -m₁, -m₂, -m₃, -sign)
+        return reorder3j(j₁, j₂, j₃, -m₁, -m₂, -m₃, -sign)
     else
         # sign doesn't matter if total J=j₁ + j₂ + j₃ is even
         if iseven(convert(UInt,j₁ + j₂ + j₃))
@@ -314,16 +318,16 @@ function compute3jseries(cache::WignerCache, β₁, β₂, β₃, α₁, α₂)
 
     nums = Vector{T}(undef, length(krange))
     dens = Vector{T}(undef, length(krange))
-    for (i, k) in enumerate(krange)
+    @timeit to "3jseries k loop" for (i, k) in enumerate(krange)
         num = iseven(k) ? one(T) : -one(T)
         den = primefactorial(cache, k)*primefactorial(cache, k-α₁)*
             primefactorial(cache, k-α₂)*primefactorial(cache, β₁-k)*
             primefactorial(cache, β₂-k)*primefactorial(cache, β₃-k)
         nums[i], dens[i] = divgcd!(num, den)
     end
-    den = commondenominator!(nums, dens)
-    totalnum = sumlist!(cache, nums)
-    totalden = _convert(cache, BigInt, den)
+    @timeit to "commondenominator!" den = commondenominator!(nums, dens)
+    @timeit to "totalnum" totalnum = sumlist!(cache, nums)
+    @timeit to "totalden" totalden = _convert(cache, BigInt, den)
     return totalnum//totalden
 end
 

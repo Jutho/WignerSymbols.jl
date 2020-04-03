@@ -22,9 +22,5 @@ function WignerCache()
         [[big(2)], [big(3)], [big(5)]],
         Ref{BigInt}(big(1))
     )
-    cache.bigone[] = big(1)
-    cache.bigprimetable[1][1] = big(2)
-    cache.bigprimetable[2][1] = big(3)
-    cache.bigprimetable[3][1] = big(5)
     return cache
 end

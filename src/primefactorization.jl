@@ -3,16 +3,16 @@ import Base.divgcd
 
 # Make a prime iterator
 struct PrimeIterator
-    cache::WignerCache
+    cache::AbstractWignerCache
 end
-primes(cache::WignerCache) = PrimeIterator(cache)
+primes(cache::AbstractWignerCache) = PrimeIterator(cache)
 
 Base.IteratorSize(::Type{PrimeIterator}) = Base.IsInfinite()
 Base.IteratorEltype(::Type{PrimeIterator}) = Base.HasEltype()
 Base.eltype(::PrimeIterator) = Int
 
 # Get the `n`th prime; store all primes up to the `n`th if not yet available
-function prime(cache::WignerCache, n::Int)
+function prime(cache::AbstractWignerCache, n::Int)
     p = last(cache.primetable)
     while length(cache.primetable) < n
         p = p + 2
@@ -28,7 +28,7 @@ end
 Base.iterate(it::PrimeIterator, n = 1) = prime(it.cache, n), n+1
 
 # get primes and their powers as `BigInt`, also cache all results
-function bigprime(cache::WignerCache, n::Integer, e::Integer=1)
+function bigprime(cache::AbstractWignerCache, n::Integer, e::Integer=1)
     e == 0 && return cache.bigone[]
     p = prime(cache, n) # triggers computation of prime(n) if necessary
     @inbounds l = length(cache.bigprimetable[n])
@@ -43,7 +43,8 @@ function bigprime(cache::WignerCache, n::Integer, e::Integer=1)
 end
 
 # A custom `Integer` subtype to store an integer as its prime factorization
-struct PrimeFactorization{U<:Unsigned} <: Integer
+abstract type AbstractPrimeFactorization{U<:Unsigned} <: Integer end
+struct PrimeFactorization{U<:Unsigned} <: AbstractPrimeFactorization{U}
     powers::Vector{U}
     sign::Int8
 end
@@ -51,7 +52,7 @@ PrimeFactorization(powers::Vector{U}) where {U<:Unsigned} =
     PrimeFactorization{U}(powers, one(Int8))
 
 # define our own factor function, returning an instance of PrimeFactorization
-function primefactor(cache::WignerCache, n::Integer)
+function primefactor(cache::AbstractWignerCache, n::Integer)
     iszero(n) && return PrimeFactorization(UInt8[], zero(Int8))
     sn = n < 0 ? -one(Int8) : one(Int8)
     n = abs(n)
@@ -76,7 +77,7 @@ function primefactor(cache::WignerCache, n::Integer)
     @inbounds return PrimeFactorization(copy(cache.factortable[n]), sn)
 end
 
-function primefactorial(cache::WignerCache, n::Integer)
+function primefactorial(cache::AbstractWignerCache, n::Integer)
     n < 0 && throw(DomainError(n))
     m = length(cache.factorialtable)-1
     @inbounds while m < n
@@ -96,7 +97,7 @@ function primefactorial(cache::WignerCache, n::Integer)
 end
 
 # Methods for PrimeFactorization:
-Base.copy(a::PrimeFactorization) = PrimeFactorization(copy(a.powers), a.sign)
+Base.copy(a::AbstractPrimeFactorization) = PrimeFactorization(copy(a.powers), a.sign)
 
 Base.one(::Type{PrimeFactorization{U}}) where {U<:Unsigned} =
     PrimeFactorization(Vector{U}())
@@ -106,9 +107,9 @@ Base.zero(::Type{PrimeFactorization{U}}) where {U<:Unsigned} =
 Base.promote_rule(P::Type{<:PrimeFactorization},::Type{<:Integer}) = P
 Base.promote_rule(P::Type{<:PrimeFactorization},::Type{BigInt}) = BigInt
 
-_convert(cache::WignerCache, P::Type{<:PrimeFactorization},
+_convert(cache::AbstractWignerCache, P::Type{<:PrimeFactorization},
     n::Integer) = _convert(P, primefactor(cache, n))
-function _convert(cache::WignerCache, T::Type{BigInt}, a::PrimeFactorization)
+function _convert(cache::AbstractWignerCache, T::Type{BigInt}, a::AbstractPrimeFactorization)
     A = one(BigInt)
     for (n, e) in enumerate(a.powers)
         if !iszero(e)
@@ -117,14 +118,14 @@ function _convert(cache::WignerCache, T::Type{BigInt}, a::PrimeFactorization)
     end
     return a.sign < 0 ? MPZ.neg!(A) : A
 end
-Base.convert(::Type{PrimeFactorization{U}}, a::PrimeFactorization{U}) where {U<:Unsigned} =
+Base.convert(::Type{PrimeFactorization{U}}, a::AbstractPrimeFactorization{U}) where {U<:Unsigned} =
     a
-Base.convert(::Type{PrimeFactorization{U}}, a::PrimeFactorization) where {U<:Unsigned} =
+Base.convert(::Type{PrimeFactorization{U}}, a::AbstractPrimeFactorization) where {U<:Unsigned} =
     PrimeFactorization(convert(Vector{U}, a.powers), a.sign)
 
-Base.:(==)(a::PrimeFactorization, b::PrimeFactorization) =
+Base.:(==)(a::AbstractPrimeFactorization, b::AbstractPrimeFactorization) =
     a.powers == b.powers && a.sign == b.sign
-function Base.:<(a::PrimeFactorization, b::PrimeFactorization)
+function Base.:<(a::AbstractPrimeFactorization, b::AbstractPrimeFactorization)
     if a.sign != b.sign
         return a.sign < b.sign
     elseif a.sign < 0
@@ -142,10 +143,10 @@ end
 
 # Methods for PrimeFactorization: only fast multiplication, and lcm and gcd.
 # Addition and subtraction will require conversion to BigInt
-Base.sign(a::PrimeFactorization) = a.sign
+Base.sign(a::AbstractPrimeFactorization) = a.sign
 
-Base.:-(a::PrimeFactorization) = PrimeFactorization(a.powers, -a.sign)
-function Base.:*(a::PrimeFactorization{T}, b::PrimeFactorization{T}) where {T}
+Base.:-(a::AbstractPrimeFactorization) = PrimeFactorization(a.powers, -a.sign)
+function Base.:*(a::AbstractPrimeFactorization{T}, b::AbstractPrimeFactorization{T}) where {T}
     if a.sign == 0
         return a
     elseif b.sign ==0
@@ -154,7 +155,7 @@ function Base.:*(a::PrimeFactorization{T}, b::PrimeFactorization{T}) where {T}
         return PrimeFactorization(_vadd!(copy(a.powers), b.powers), a.sign*b.sign)
     end
 end
-function Base.gcd(a::PrimeFactorization{T}, b::PrimeFactorization{T}) where {T}
+function Base.gcd(a::AbstractPrimeFactorization{T}, b::AbstractPrimeFactorization{T}) where {T}
     if a.sign == 0
         return b
     elseif b.sign ==0
@@ -163,7 +164,7 @@ function Base.gcd(a::PrimeFactorization{T}, b::PrimeFactorization{T}) where {T}
         return PrimeFactorization(_vmin!(copy(a.powers), b.powers))
     end
 end
-function Base.lcm(a::PrimeFactorization{T}, b::PrimeFactorization{T}) where {T}
+function Base.lcm(a::AbstractPrimeFactorization{T}, b::AbstractPrimeFactorization{T}) where {T}
     if a.sign == 0
         return a
     elseif b.sign ==0
@@ -172,8 +173,8 @@ function Base.lcm(a::PrimeFactorization{T}, b::PrimeFactorization{T}) where {T}
         return PrimeFactorization(_vmax!(copy(a.powers), b.powers))
     end
 end
-Base.divgcd(a::PrimeFactorization, b::PrimeFactorization) = divgcd!(copy(a), copy(b))
-function divgcd!(a::PrimeFactorization, b::PrimeFactorization)
+Base.divgcd(a::AbstractPrimeFactorization, b::AbstractPrimeFactorization) = divgcd!(copy(a), copy(b))
+function divgcd!(a::AbstractPrimeFactorization, b::AbstractPrimeFactorization)
     af, bf = a.powers, b.powers
     for k = 1:min(length(af), length(bf))
         gk = min(af[k], bf[k])
@@ -189,9 +190,9 @@ function divgcd!(a::PrimeFactorization, b::PrimeFactorization)
     return a, b
 end
 
-# split `a::PrimeFactorization` into a square `s` and a remainder `r`, such that
+# split `a::AbstractPrimeFactorization` into a square `s` and a remainder `r`, such that
 # `a = s^2 * r` and the powers in the prime factorization of `r` are zero or one
-function splitsquare(a::PrimeFactorization)
+function splitsquare(a::AbstractPrimeFactorization)
     r = PrimeFactorization(map(p->convert(UInt8, isodd(p)), a.powers), a.sign)
     while length(r.powers) > 0 && iszero(last(r.powers))
         pop!(r.powers)
@@ -220,7 +221,7 @@ function commondenominator!(nums::Vector{P}, dens::Vector{P}) where {P<:PrimeFac
 end
 
 # auxiliary function to compute sums of a list of PrimeFactorizations as quickly as possible
-function sumlist!(cache::WignerCache, list::Vector{<:PrimeFactorization}, ind = 1:length(list))
+function sumlist!(cache::AbstractWignerCache, list::Vector{<:PrimeFactorization}, ind = 1:length(list))
     # first compute gcd to take out common factors
     g = PrimeFactorization(copy(list[ind[1]].powers))
     for k in ind
@@ -229,6 +230,7 @@ function sumlist!(cache::WignerCache, list::Vector{<:PrimeFactorization}, ind = 
     for k in ind
         _vsub!(list[k].powers, g.powers)
     end
+
     L = length(ind)
     if L > 32
         l = L >> 1

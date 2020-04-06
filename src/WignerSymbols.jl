@@ -7,7 +7,7 @@ using HalfIntegers
 using RationalRoots
 const RRBig = RationalRoot{BigInt}
 import RationalRoots: _convert
-
+using ThreadSafeDicts
 include("wignercache.jl")
 include("primefactorization.jl")
 include("boundedcache.jl")
@@ -25,6 +25,9 @@ const wigner_caches = WignerCache[]
     end
     return cache
 end
+
+const Wigner3j = ThreadSafeDict{Tuple{UInt,UInt,UInt,Int,Int},Tuple{Rational{BigInt},Rational{BigInt}}}()
+const Wigner6j = ThreadSafeDict{NTuple{6,UInt},Tuple{Rational{BigInt},Rational{BigInt}}}()
 
 function __init__()
     global wigner_caches

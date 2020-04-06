@@ -231,6 +231,7 @@ function commondenominator!(cache::BoundedWignerCache, nums::Vector{P},
 end
 
 function _convert!(cache::BoundedWignerCache, A::BigInt, a::StaticPrimeFactorization)
+    MPZ.set!(A, cache.bigone[])
     @inbounds for n in 1:a.last_nonzero_index
         e = a.powers[n]
         if !iszero(e)
@@ -275,10 +276,9 @@ function sumlist!(cache::BoundedWignerCache, list::Vector{P},
     else
         # do sum
         s = big(0)
-        summand = big(1)
+        # summand = big(1)
         for k in ind
-            MPZ.set!(summand, cache.bigone[])
-            MPZ.add!(s, _convert!(cache, summand, list[k]))
+            MPZ.add!(s, _convert!(cache, cache.addbuf[], list[k]))
         end
     end
     return MPZ.mul!(s, gint)
@@ -369,8 +369,8 @@ function wigner3j(cache::BoundedWignerCache, T::Type{<:Real}, j₁, j₂, j₃, 
     sgn = isodd(α₁ - α₂) ? -sgn : sgn
 
     # dictionary lookup or compute
-    if haskey(cache.Wigner3j, (β₁, β₂, β₃, α₁, α₂))
-        r, s = cache.Wigner3j[(β₁, β₂, β₃, α₁, α₂)]
+    if haskey(Wigner3j, (β₁, β₂, β₃, α₁, α₂))
+        r, s = Wigner3j[(β₁, β₂, β₃, α₁, α₂)]
     else
         s1n, s1d = cache.numbuf, cache.denbuf
         s2n, snum, rnum, sden, rden = cache.s2n, cache.snum, cache.rnum, cache.sden, cache.rden
@@ -388,7 +388,7 @@ function wigner3j(cache::BoundedWignerCache, T::Type{<:Real}, j₁, j₂, j₃, 
         r = _convert(cache, BigInt, rnum) // _convert(cache, BigInt, rden)
 
         s *= compute3jseries(cache, β₁, β₂, β₃, α₁, α₂)
-        cache.Wigner3j[(β₁, β₂, β₃, α₁, α₂)] = (r,s)
+        Wigner3j[(β₁, β₂, β₃, α₁, α₂)] = (r,s)
     end
     return convert(T, sgn*s)*convert(T, signedroot(r))
 end

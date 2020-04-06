@@ -35,9 +35,13 @@ struct BoundedWignerCache <: AbstractWignerCache
     nums::Array{StaticPrimeFactorization{UInt32},1}
     dens::Array{StaticPrimeFactorization{UInt32},1}
 
+
     # prime factorization buffers
     numbuf::StaticPrimeFactorization{UInt32}
     denbuf::StaticPrimeFactorization{UInt32}
+
+    # buffers for adding
+    addbuf::Base.RefValue{BigInt}
 
     # buffers for r and s calculations. s1n and s1d use numbuf and denbuf.
     s2n::StaticPrimeFactorization{UInt32}  # s2n is reused for sumlist
@@ -49,6 +53,13 @@ end
 
 factorbuffer(nfact) = StaticPrimeFactorization(zeros(UInt32, nfact), one(Int8),1)
 
+"""
+Bounds on the prime-counting function.
+
+Rosser, J. Barkley; Schoenfeld, Lowell (1962). "Approximate formulas for some functions of 
+prime numbers". Illinois J. Math. 6: 64–94.
+"""
+πbound(n) = (n < 2) ? 0 : Int(ceil(1.25506n / log(n)))
 
 """
 Bounds based on Table 3 of Johansson and Forssén 2016.
@@ -59,6 +70,7 @@ function BoundedWignerCache(max_j::T; nj=3) where {T <: Integer}
     multiplier = Int(2 + round(nj / 3))
     maxfactorial = multiplier * max_j + 1
     maxt = max_j + 1
+    max_prime_factors = πbound(maxfactorial)
 
     cache = BoundedWignerCache(
         Dict{Tuple{UInt,UInt,UInt,Int,Int},Tuple{Rational{BigInt},Rational{BigInt}}}(),
@@ -68,16 +80,18 @@ function BoundedWignerCache(max_j::T; nj=3) where {T <: Integer}
         [UInt32[], UInt32[], UInt32[1], UInt32[1,1], UInt32[3,1], UInt32[3,1,1]],
         [[big(2)], [big(3)], [big(5)]],
         Ref{BigInt}(big(1)),
-        [factorbuffer(maxfactorial) for i in 1:maxt],  # nums
-        [factorbuffer(maxfactorial) for i in 1:maxt],  # dens
-        factorbuffer(maxfactorial),  # numbuf
-        factorbuffer(maxfactorial),  # denbuf
+        [factorbuffer(max_prime_factors) for i in 1:maxt],  # nums
+        [factorbuffer(max_prime_factors) for i in 1:maxt],  # dens
+        factorbuffer(max_prime_factors),  # numbuf
+        factorbuffer(max_prime_factors),  # denbuf
 
-        factorbuffer(maxfactorial),  # s2n
-        factorbuffer(maxfactorial),  # snum 
-        factorbuffer(maxfactorial),  # rnum
-        factorbuffer(maxfactorial),  # sden
-        factorbuffer(maxfactorial)   # rden
+        Ref{BigInt}(big(0)),
+
+        factorbuffer(max_prime_factors),  # s2n
+        factorbuffer(max_prime_factors),  # snum 
+        factorbuffer(max_prime_factors),  # rnum
+        factorbuffer(max_prime_factors),  # sden
+        factorbuffer(max_prime_factors)   # rden
     )
     return cache
 end
@@ -216,9 +230,7 @@ function commondenominator!(cache::BoundedWignerCache, nums::Vector{P},
     return
 end
 
-function _convert(cache::BoundedWignerCache, T::Type{BigInt}, a::StaticPrimeFactorization)
-    A = one(BigInt)
-    # for (n, e) in enumerate(a.powers)
+function _convert!(cache::BoundedWignerCache, A::BigInt, a::StaticPrimeFactorization)
     @inbounds for n in 1:a.last_nonzero_index
         e = a.powers[n]
         if !iszero(e)
@@ -226,6 +238,11 @@ function _convert(cache::BoundedWignerCache, T::Type{BigInt}, a::StaticPrimeFact
         end
     end
     return a.sign < 0 ? MPZ.neg!(A) : A
+end
+
+function _convert(cache::BoundedWignerCache, T::Type{BigInt}, a::StaticPrimeFactorization)
+    A = one(BigInt)
+    return _convert!(cache, A, a)
 end
 
 # auxiliary function to compute sums of a list of PrimeFactorizations as quickly as possible
@@ -258,8 +275,10 @@ function sumlist!(cache::BoundedWignerCache, list::Vector{P},
     else
         # do sum
         s = big(0)
+        summand = big(1)
         for k in ind
-            MPZ.add!(s, _convert(cache, BigInt, list[k]))
+            MPZ.set!(summand, cache.bigone[])
+            MPZ.add!(s, _convert!(cache, summand, list[k]))
         end
     end
     return MPZ.mul!(s, gint)

@@ -24,7 +24,7 @@ function wigner_dicts(Tdict::Type{<:Real})
 end
 
 function get_thread_caches(Tdict::Type{<:Real}, maxj::Integer)
-    d3, d6 = WignerSymbols.wigner_dicts(Float64)
+    d3, d6 = WignerSymbols.wigner_dicts(Tdict)
     caches = BoundedWignerCache[]
     resize!(empty!(caches), Threads.nthreads())
     Threads.@threads for i in 1:Threads.nthreads()

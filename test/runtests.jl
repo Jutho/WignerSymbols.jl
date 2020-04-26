@@ -8,7 +8,7 @@ Random.seed!(1234)
 smalljlist = 0:1//2:10
 largejlist = 0:1//2:1000
 
-include("boundedtests.jl")
+# include("prevtests.jl")
 
 @testset "triangle coefficient" begin
     for j1 in smalljlist, j2 in smalljlist
@@ -20,7 +20,7 @@ include("boundedtests.jl")
     end
 end
 
-# test 3j:
+## test 3j:
 #--------
 @testset "clebschgordan: test orthogonality" begin
     for j1 in smalljlist, j2 in smalljlist
@@ -40,7 +40,7 @@ end
     end
 end
 
-# test recurrence relations: Phys Rev E 57, 7274 (1998)
+## test recurrence relations: Phys Rev E 57, 7274 (1998)
 @testset "wigner3j: test recurrence relations" begin
     for k = 1:10
         j2 = convert(BigFloat, rand(0:1//2:1000))
@@ -81,7 +81,7 @@ end
     end
 end
 
-# test 6j
+## test 6j
 #----------
 @testset "wigner6j: test orthogonality" begin
     for j1 in smalljlist, j2 in smalljlist, j4 in smalljlist

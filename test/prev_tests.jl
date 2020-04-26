@@ -7,7 +7,7 @@ Random.seed!(1234)
 smalljlist = 0:1//2:10
 largejlist = 0:1//2:1000
 
-cache = BoundedWignerCache(1000)
+cache = WignerCache()
 
 # test recurrence relations: Phys Rev E 57, 7274 (1998)
 @testset "bounded wigner3j: test recurrence relations" begin

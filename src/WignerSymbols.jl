@@ -8,30 +8,33 @@ using RationalRoots
 const RRBig = RationalRoot{BigInt}
 import RationalRoots: _convert
 using ThreadSafeDicts
+
 include("wignercache.jl")
 include("primefactorization.jl")
 include("boundedcache.jl")
 
+
+const MAX_J = Ref(200)
+
 # imitating Base.Random.THREAD_RNGs, initialize new caches on each thread
-const wigner_caches = WignerCache[]
+const wigner_caches = BoundedWignerCache[]
 @inline get_local_cache() = get_local_cache(Threads.threadid())
 @noinline function get_local_cache(tid::Int)
     @assert 0 < tid <= length(wigner_caches)
     if @inbounds isassigned(wigner_caches, tid)
         @inbounds cache = wigner_caches[tid]
     else
-        cache = WignerCache()
+        cache = BoundedWignerCache(Wigner3j, Wigner6j, MAX_J[])
         @inbounds wigner_caches[tid] = cache
     end
     return cache
 end
 
-const Wigner3j = ThreadSafeDict{Tuple{UInt,UInt,UInt,Int,Int},Tuple{Rational{BigInt},Rational{BigInt}}}()
-const Wigner6j = ThreadSafeDict{NTuple{6,UInt},Tuple{Rational{BigInt},Rational{BigInt}}}()
-
 function __init__()
     global wigner_caches
     resize!(empty!(wigner_caches), Threads.nthreads())
+    empty!(Wigner3j)
+    empty!(Wigner6j)
 end
 
 # check integerness and correctness of (j,m) angular momentum
@@ -57,8 +60,8 @@ Returns `zero(T)` if the triangle condition `δ(j₁, j₂, j₃)` is not satisf
 throws a `DomainError` if the `jᵢ`s are not (half)integer
 """
 Δ(j₁, j₂, j₃) = Δ(get_local_cache(), RRBig, j₁, j₂, j₃)
-Δ(cache::WignerCache, j₁, j₂, j₃) = Δ(cache, RRBig, j₁, j₂, j₃)
-function Δ(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃)
+Δ(cache::AbstractWignerCache, j₁, j₂, j₃) = Δ(cache, RRBig, j₁, j₂, j₃)
+function Δ(cache::AbstractWignerCache, T::Type{<:Real}, j₁, j₂, j₃)
     for jᵢ in (j₁, j₂, j₃)
         (ishalfinteger(jᵢ) && jᵢ >= zero(jᵢ)) || throw(DomainError("invalid jᵢ", jᵢ))
     end
@@ -86,7 +89,7 @@ wigner3j(j₁::Integer, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = wigner3j(
     get_local_cache(), RRBig, j₁, j₂, j₃, m₁, m₂, m₃)
 wigner3j(T::Type{<:Real}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = wigner3j(
     get_local_cache(), T, j₁, j₂, j₃, m₁, m₂, m₃)
-wigner3j(cache::WignerCache, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = wigner3j(
+wigner3j(cache::AbstractWignerCache, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = wigner3j(
     cache, RRBig, j₁, j₂, j₃, m₁, m₂, m₃)
 function wigner3j(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
     # check angular momenta
@@ -141,9 +144,9 @@ throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(
 """
 clebschgordan(j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) =
     clebschgordan(get_local_cache(), RRBig, j₁, m₁, j₂, m₂, j₃, m₃)
-clebschgordan(cache::WignerCache, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) =
+clebschgordan(cache::AbstractWignerCache, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂) =
     clebschgordan(cache, RRBig, j₁, m₁, j₂, m₂, j₃, m₃)
-function clebschgordan(cache::WignerCache, T::Type{<:Real}, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂)
+function clebschgordan(cache::AbstractWignerCache, T::Type{<:Real}, j₁, m₁, j₂, m₂, j₃, m₃ = m₁+m₂)
     s = wigner3j(cache, T, j₁, j₂, j₃, m₁, m₂, -m₃)
     iszero(s) && return s
     s *= convert(T, signedroot(RRBig, j₃+j₃+one(j₃)))

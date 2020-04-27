@@ -8,8 +8,6 @@ Random.seed!(1234)
 smalljlist = 0:1//2:10
 largejlist = 0:1//2:1000
 
-# include("prevtests.jl")
-
 @testset "triangle coefficient" begin
     for j1 in smalljlist, j2 in smalljlist
         for j3 = abs(j1-j2):(j1+j2)
@@ -167,3 +165,6 @@ end
         end
     end
 end
+
+# compare threaded and old serial implementation
+include("threadtests.jl")

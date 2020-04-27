@@ -1,30 +1,83 @@
+"""
+This part of the code primarily dispatches on the `BoundedWignerCache` type on the first
+argument of the internal functions. It reduces the number of allocations in heavy workloads
+by more than an order of magnitude with a number of different optimizations, compared to the
+code in main code file. This makes it accelerate computations with parallelism like
+threading without being limited by the memory bandwidth.
 
+* The number n! has a prime factorization containing all prime numbers less than n. Then
+  the total number of prime factors one needs to store is bounded by the prime counting 
+  function π(n). We thus preallocate prime factorization buffers of size ~ π(n).
+* Instead of modifying array sizes with push/pop, one keeps track of the largest nonzero 
+  prime factor during additions. Prime factorizations and sums are preallocated with bounds
+  given in Johansson and Forssén 2016.
+* BigInt is basically an array allocated on the heap, and thus generates a lot of
+  painful allocations. Each thread reuses the same BigInts for different parts of the 
+  calculation, when possible.
+"""
+
+"""
+The nj symbols can be written in the form r ⋅ √s, and we store such numbers in the result 
+caches `Wigner3j` and `Wigner6j`. Previously this was a `Tuple{T,T}`, but this was 
+challenging to use as a Number type. The default result key is `RSPair{Rational{BigInt}}``.
+"""
 struct RSPair{T<:Number} <: Number
     r::T
     s::T
 end
 
-const BigNumber = Union{Rational{BigInt},BigInt,BigFloat} 
-const Wigner3j = ThreadSafeDict{Tuple{UInt,UInt,UInt,Int,Int},RSPair{Rational{BigInt}}}()
-const Wigner6j = ThreadSafeDict{NTuple{6,UInt},RSPair{Rational{BigInt}}}()
-
+"""
+Convert a number of the form r ⋅ √s to some kind of floating point number. This needs to
+be done by way of BigFloat to avoid overflows.
+"""
 function Base.convert(T::Type{<:AbstractFloat}, rs::RSPair)
     convert(T,  # convert to BigFloat first for floating point types
         convert(BigFloat, rs.s)*convert(BigFloat, signedroot(rs.r)))
 end
+
+"""
+Convert a number of the form r ⋅ √s to an arbitrary number type involves just performing
+the conversion and then the actual computation. 
+"""
 Base.convert(T::Type{<:Real}, rs::RSPair) = convert(T, rs.s)*convert(T, signedroot(rs.r))
-function store_result(rs::RSPair{T}) where {T <: BigNumber}
-    return deepcopy(rs)
-end
-store_result(rs::T) where T = rs
 
+"""
+The arbitrary-precision types in Julia are still unpolished, and they are unlike normal
+numerical types as they mutable. This BigNumber type allows us to dispatch based on 
+mutability and make a deepcopy if it's a mutable type.
+"""
+const BigNumber = Union{Rational{BigInt},BigInt,BigFloat} 
+
+"""
+We're trying to reuse BigInts when possible, but this means that if one wants to keep the 
+exact solutions in the dictionary, one must deepcopy the number.
+"""
+store_result(rs::RSPair{T}) where {T <: BigNumber} = deepcopy(rs)
+store_result(rs) = rs
+
+"""
+The default global thread-safe dictionaries used to cache results of calculations.
+They map the symmetrized form to r,s pairs.
+"""
+const Wigner3j = ThreadSafeDict{Tuple{UInt,UInt,UInt,Int,Int},RSPair{Rational{BigInt}}}()
+const Wigner6j = ThreadSafeDict{NTuple{6,UInt},RSPair{Rational{BigInt}}}()
+
+"""
+Convenience function for generating thread-safe dictionaries which store the results.
+Returns the dictionaries for Wigner3j and Wigner6j in a tuple.
+"""
 function wigner_dicts(Tdict::Type{<:Real})
-    return (ThreadSafeDict{Tuple{UInt,UInt,UInt,Int,Int},Tdict}(), 
-            ThreadSafeDict{NTuple{6,UInt},Tdict}())
+    return (ThreadSafeDict{Tuple{UInt,UInt,UInt,Int,Int},Tdict}(),  # 3j
+            ThreadSafeDict{NTuple{6,UInt},Tdict}())                 # 6j
 end
 
+"""
+Convenience function for generating an array of caches for each thread. The default 
+behavior essentially calls `get_thread_caches(Rational{BigInt}, MAX_J[])` for the default
+caches. 
+"""
 function get_thread_caches(Tdict::Type{<:Real}, maxj::Integer)
-    d3, d6 = WignerSymbols.wigner_dicts(Tdict)
+    d3, d6 = WignerSymbols.wigner_dicts(Tdict)  # shared by all threads
     caches = BoundedWignerCache[]
     resize!(empty!(caches), Threads.nthreads())
     Threads.@threads for i in 1:Threads.nthreads()
@@ -34,7 +87,7 @@ function get_thread_caches(Tdict::Type{<:Real}, maxj::Integer)
     return caches
 end
 
-
+# utilities for StaticPrimeFactorization
 isnonzero(x::T) where {T<:Integer} = (x != zero(T))
 function get_last_nonzero(vec::Vector{T}) where T
     last_nonzero_index = findlast(isnonzero, vec)
@@ -44,7 +97,14 @@ function get_last_nonzero(vec::Vector{T}) where T
     return last_nonzero_index
 end
 
-# A custom `Integer` subtype to store an integer as its prime factorization
+"""
+A custom `Integer` subtype to store an integer as its prime factorization.
+
+Unlike PrimeFactorization, this type keeps track of the index of the last nonzero
+index, and it is not expected for the `powers` vector to change size. If more powers are
+required, we reallocate every buffer (see `grow!`). When one computes with this number,
+all loops over the factors stop at the last nonzero index, which buys ~20% in performance.
+"""
 mutable struct StaticPrimeFactorization{U<:Unsigned} <: AbstractPrimeFactorization{U}
     powers::Vector{U}
     sign::Int8
@@ -57,14 +117,23 @@ StaticPrimeFactorization(powers::Vector{U}, sign::Integer) where {U<:Unsigned} =
         get_last_nonzero(powers))
 
 
+"""
+This structure keeps the buffers into which prime factorizations, big integers, and Wigner
+symbols are buffered. By allocating these buffers, one avoids having to reallocate for
+each combination of jᵢ.
+
+We parametrize on the type of the stored result `Tdict`.
+"""
 struct BoundedWignerCache{Tdict} <: AbstractWignerCache
 
-    bounded_multiplier::Int
-    max_j::Base.RefValue{Int}
+    bounded_multiplier::Int  # 3 for 3j, 4 for 6j. determines the largets factorial
+    max_j::Base.RefValue{Int}  # largest jᵢ allowed by the cache
 
+    # the caches for each thread should all point to the same ThreadSafeDict
     Wigner3j::ThreadSafeDict{Tuple{UInt,UInt,UInt,Int,Int},Tdict}
     Wigner6j::ThreadSafeDict{NTuple{6,UInt},Tdict}
 
+    # these arrays replace the global caches in the previous WignerSymbols.jl.
     primetable::Array{Int64,1}
     factortable::Array{Array{UInt8,1},1}
     factorialtable::Array{Array{UInt32,1},1}
@@ -84,6 +153,7 @@ struct BoundedWignerCache{Tdict} <: AbstractWignerCache
     seriesnum::Base.RefValue{BigInt}
     seriesden::Base.RefValue{BigInt}
     
+    # BigInts for numerators and denominators of s ⋅ √r
     snumint::Base.RefValue{BigInt}
     sdenint::Base.RefValue{BigInt}
     rnumint::Base.RefValue{BigInt}
@@ -97,6 +167,9 @@ struct BoundedWignerCache{Tdict} <: AbstractWignerCache
     rden::StaticPrimeFactorization{UInt32}
 end
 
+"""
+Convenience function for generating a StaticPrimeFactorization of length `nfact`.
+"""
 factorbuffer(nfact) = StaticPrimeFactorization(zeros(UInt32, nfact), one(Int8),1)
 
 """
@@ -109,20 +182,19 @@ prime numbers". Illinois J. Math. 6: 64–94.
 
 
 """
-Stirling's approximation
-"""
-bound_factorial(n) = Int(ceil(((n+1/2) * log(n) - n ) / log(2)))
+This constructs the BoundedWignerCache.
 
-"""
-Bounds based on Table 3 of Johansson and Forssén 2016.
+Bounds on the maximum factorial and the number of series terms are based on Table 3 of 
+Johansson and Forssén 2016.
 
-Set nj=3 for 3j, nj=6 for 6j, nj=9 for 9j.
+Set nj=3 for 3j, nj=6 for 6j.
 """
 function BoundedWignerCache(
         dict3j::ThreadSafeDict{Tuple{UInt,UInt,UInt,Int,Int},Tdict}, 
         dict6j::ThreadSafeDict{NTuple{6,UInt},Tdict},
         max_j::Integer, nj=6) where {Tdict}
 
+    # compute the bounds
     multiplier = Int(ceil(2 + round(nj / 3)))
     maxfactorial = multiplier * max_j + 1
     maxt = max_j + 1
@@ -161,14 +233,22 @@ function BoundedWignerCache(
     return cache
 end
 
+"""
+Expand a StaticPrimeFactorization to a new size.
+"""
 function grow_factorization!(spf::StaticPrimeFactorization{T}, new_size::Integer) where T
     old_size = length(spf.powers)
     resize!(spf.powers, new_size)
-    for i in old_size:new_size
+    @inbounds for i in old_size:new_size
         spf.powers[i] = zero(T)
     end
 end
 
+"""
+Change the maximum jᵢ of a BoundedWignerCache. This requires reallocating everything, it's 
+a real mess. In `wigner3j` and `wigner6j` we grow the BoundedWignerCache by a factor of 2 
+as necessary, i.e. amortized constant time.
+"""
 function grow!(new_max_j::Integer, cache::BoundedWignerCache)
     cache.max_j[] = new_max_j
     maxfactorial = cache.bounded_multiplier * new_max_j + 1
@@ -191,6 +271,9 @@ function grow!(new_max_j::Integer, cache::BoundedWignerCache)
 end
 
 
+"""
+Computes the prime factors of an integer, and stores that in the cache.
+"""
 function precompute_primefactorial!(cache::BoundedWignerCache, n::Integer)
     n < 0 && throw(DomainError(n))
     m = length(cache.factorialtable)-1
@@ -214,7 +297,7 @@ end
 Perform an in-place multiplication of a prime factorization of a factorial.
 """
 function mul_primefactorial!(cache::BoundedWignerCache, 
-        fact_dest::AbstractPrimeFactorization{T}, n::Integer) where T
+        fact_dest::StaticPrimeFactorization{T}, n::Integer) where T
     precompute_primefactorial!(cache, n)
     row = cache.factorialtable[n+1]
     for i in 1:length(row)
@@ -225,12 +308,20 @@ function mul_primefactorial!(cache::BoundedWignerCache,
 end
 
 """
+Deposit the factorization of an integer n to a destination fact_dest.
+"""
+function primefactorial!(cache::BoundedWignerCache, 
+                         fact_dest::StaticPrimeFactorization{T}, n::Integer) where {T, N}
+    one!(fact_dest, 1)  # reset factor destination
+    mul_primefactorial!(cache, fact_dest, n)
+end
+
+"""
 Convenience function for multiplying together a bunch of primefactorials in a buffer.
 """
-function mul_primefactorial!(cache::BoundedWignerCache, 
-                             fact_dest::AbstractPrimeFactorization{T}, 
-                             ns::NTuple{N, Integer}) where {T, N}
-
+function primefactorial!(cache::BoundedWignerCache, 
+                         fact_dest::AbstractPrimeFactorization{T}, 
+                         ns::NTuple{N, Integer}) where {T, N}
     one!(fact_dest, 1)  # reset factor destination to +1
     for n in ns
         mul_primefactorial!(cache, fact_dest, n)
@@ -238,7 +329,11 @@ function mul_primefactorial!(cache::BoundedWignerCache,
     return
 end
 
-function one!(fact_dest::AbstractPrimeFactorization{T}, sign::Integer) where T
+"""
+Sets a prime factorization to 1 by setting all the nonzero powers to zero. One can specify
+a sign for ±1.
+"""
+function one!(fact_dest::StaticPrimeFactorization{T}, sign::Integer) where T
     for i in 1:fact_dest.last_nonzero_index
         fact_dest.powers[i] = zero(T)
     end
@@ -248,8 +343,19 @@ function one!(fact_dest::AbstractPrimeFactorization{T}, sign::Integer) where T
     return
 end
 
+
+"""
+# Style Note
+Our operations which manipulate StaticPrimeFactorization don't ever decrease the last 
+nonzero index. It's maybe possible that something cancelled, but tests show that such an
+optimization has a negligible effect on performance. We do increase it as necessary.
+"""
+
+"""
+Divide common factors of StaticPrimeFactorization numbers.
+"""
 function divgcd!(cache::BoundedWignerCache, 
-        a::AbstractPrimeFactorization, b::AbstractPrimeFactorization)
+        a::StaticPrimeFactorization, b::StaticPrimeFactorization)
 
     af, bf = a.powers, b.powers
     @inbounds for k = 1:min(a.last_nonzero_index, b.last_nonzero_index)
@@ -260,6 +366,10 @@ function divgcd!(cache::BoundedWignerCache,
     return
 end
 
+"""
+Find the minimum of each power between two factorizations, and put it into the first 
+argument `a`.
+"""
 function _vmin!(a::StaticPrimeFactorization{U}, 
     b::StaticPrimeFactorization{U}) where {U<:Unsigned}
     af = a.powers
@@ -270,6 +380,11 @@ function _vmin!(a::StaticPrimeFactorization{U},
     return 
 end
 
+"""
+Subtract the powers of two StaticPrimeFactorization numbers.
+
+The resulting number has the max of the two arguments' last nonzero indices.
+"""
 function _vsub!(a::StaticPrimeFactorization{U}, 
     b::StaticPrimeFactorization{U}) where {U<:Unsigned}
     af = a.powers
@@ -278,10 +393,12 @@ function _vsub!(a::StaticPrimeFactorization{U},
         af[k] -= bf[k]
     end
     a.last_nonzero_index = max(a.last_nonzero_index, b.last_nonzero_index)
-
     return a
 end
 
+"""
+Add the powers of two StaticPrimeFactorization numbers.
+"""
 function _vadd!(a::StaticPrimeFactorization{U}, 
     b::StaticPrimeFactorization{U}) where {U<:Unsigned}
     af = a.powers
@@ -290,7 +407,6 @@ function _vadd!(a::StaticPrimeFactorization{U},
         af[k] = +(af[k], bf[k])
     end
     a.last_nonzero_index = max(a.last_nonzero_index, b.last_nonzero_index)
-
     return a
 end
 
@@ -324,6 +440,9 @@ function commondenominator!(cache::BoundedWignerCache, nums::Vector{P},
     return
 end
 
+"""
+Recover a BigInteger from the factorization. This sets the input `A` to the result.
+"""
 function _convert!(cache::BoundedWignerCache, A::BigInt, a::StaticPrimeFactorization)
     MPZ.set!(A, cache.bigone[])
     @inbounds for n in 1:a.last_nonzero_index
@@ -335,14 +454,22 @@ function _convert!(cache::BoundedWignerCache, A::BigInt, a::StaticPrimeFactoriza
     return a.sign < 0 ? MPZ.neg!(A) : A
 end
 
+"""
+Recover a BigInteger from the factorization. This creates a new BigInt.
+"""
 function _convert(cache::BoundedWignerCache, T::Type{BigInt}, a::StaticPrimeFactorization)
     A = one(BigInt)
     return _convert!(cache, A, a)
 end
 
-# auxiliary function to compute sums of a list of PrimeFactorizations as quickly as possible
-function sumlist!(cache::BoundedWignerCache, list::Vector{P}, 
-        ind = 1:length(list)) where {P <: StaticPrimeFactorization}
+"""
+Auxiliary function to compute sums of a list of PrimeFactorizations as quickly as possible.
+
+This mutates the input vector of StaticPrimeFactorization and returns the sum. This 
+unfortunately incurs some allocations by operating recursively.
+"""
+function sumlist!(cache::BoundedWignerCache, list::Vector{StaticPrimeFactorization{T}}, 
+                  ind = 1:length(list)) where {T}
     # first compute gcd to take out common factors
     g = cache.snum
     one!(g, 1)
@@ -351,17 +478,13 @@ function sumlist!(cache::BoundedWignerCache, list::Vector{P},
         g.powers[i] = first_p.powers[i]
     end
     g.last_nonzero_index = first_p.last_nonzero_index
-    # g = StaticPrimeFactorization(
-    #     cache.snum.powers[1:list[ind[1]].last_nonzero_index], one(Int8), 
-    #     list[ind[1]].last_nonzero_index)
-    # cache.snum.last_nonzero_index = list[ind[1]].last_nonzero_index
     @inbounds for k in ind
         _vmin!(g, list[k])
     end
     @inbounds for k in ind
         _vsub!(list[k], g)
     end
-    gint = _convert(cache, BigInt, g)
+    gint = _convert(cache, BigInt, g)  # TODO: make this non-allocating
     L = length(ind)
     if L > 32
         l = L >> 1
@@ -379,47 +502,55 @@ function sumlist!(cache::BoundedWignerCache, list::Vector{P},
 end
 
 
-# squared triangle coefficient
+"""
+Squared triangle coefficient.
+
+This puts the results in the arguments s1n and s1d.
+"""
 function Δ²!(cache::BoundedWignerCache, s1n::T, s1d::T, 
-        j₁, j₂, j₃) where T <: StaticPrimeFactorization
+             j₁, j₂, j₃) where T <: StaticPrimeFactorization
     # also checks the triangle conditions by converting to unsigned integer:
-    
-    one!(s1n, 1)
-    mul_primefactorial!(cache, s1n, (
+    primefactorial!(cache, s1n, (
         convert(UInt, + j₁ + j₂ - j₃),
         convert(UInt, + j₁ - j₂ + j₃),
-        convert(UInt, - j₁ + j₂ + j₃))
-    )
+        convert(UInt, - j₁ + j₂ + j₃)))
 
-    one!(s1d, 1)
-    mul_primefactorial!(cache, s1d, convert(UInt, j₁ + j₂ + j₃ + 1) )
+    primefactorial!(cache, s1d, convert(UInt, j₁ + j₂ + j₃ + 1) )
 end
 
-# compute the sum appearing in the 3j symbol
+"""
+Compute the sum appearing in the 3j symbol.
+
+This makes heavy use of preallocated variables in the BoundedWignerCache.
+"""
 function compute3jseries(cache::BoundedWignerCache, β₁, β₂, β₃, α₁, α₂)
     krange = max(α₁, α₂, zero(α₁)):min(β₁, β₂, β₃)
     numk = length(krange)
     T_int = eltype(eltype(cache.factorialtable))
     T = PrimeFactorization{T_int}
 
+    # get the preallocated variables from the cache
     nums = cache.nums
     dens = cache.dens
+
     for (i, k) in enumerate(krange)
         num = nums[i]
         den = dens[i]
         one!(num, iseven(k) ? 1 : -1)
-        one!(den, 1)
-        mul_primefactorial!(cache, den, (k, k-α₁, k-α₂, β₁-k, β₂-k, β₃-k))
+        primefactorial!(cache, den, (k, k-α₁, k-α₂, β₁-k, β₂-k, β₃-k))
         # divgcd!(cache, num, den)
     end
 
      # write gcd to buffer
     commondenominator!(cache, nums, dens, numk) 
     totalden = _convert!(cache, cache.seriesden[], cache.denbuf)
-    totalnum = sumlist!(cache, nums[1:numk])
+    totalnum = sumlist!(cache, nums, 1:numk)
     return totalnum//totalden
 end
 
+"""
+Remove one factor from each odd exponent to move into square root.
+"""
 function splitsquare!(s::T, r::T, a::T) where {T <: StaticPrimeFactorization}
     one!(r, a.sign)
     for i in 1:a.last_nonzero_index
@@ -431,16 +562,21 @@ function splitsquare!(s::T, r::T, a::T) where {T <: StaticPrimeFactorization}
         s.powers[i] = (a.powers[i])>>1
     end
 
-    # maybe this bound could be improved
     r.last_nonzero_index = a.last_nonzero_index
     s.last_nonzero_index = a.last_nonzero_index
 end
 
-# wigner3j(cache::BoundedWignerCache, Wigner3j::Dict, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = wigner3j(
-#     cache, RRBig, j₁, j₂, j₃, m₁, m₂, m₃)
-function wigner3j(cache::BoundedWignerCache{Tdict}, 
-        T::Type{<:Real},
-        j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) where Tdict <: Number
+
+"""
+Compute the Wigner-3j symbol. 
+
+The cache parametric type `Tdict` sets the type that the cache stores results. The type 
+`T` is what the final result will be converted to. This enables the default behavior 
+of storing results as pairs of r and s where r, s are Rational{BigInt} but offering 
+arbitrary output.
+"""
+function wigner3j(cache::BoundedWignerCache{Tdict}, T::Type{<:Real},
+                  j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) where Tdict <: Number
     
     # check angular momenta
     for (jᵢ,mᵢ) in ((j₁, m₁), (j₂, m₂), (j₃, m₃))
@@ -472,31 +608,36 @@ function wigner3j(cache::BoundedWignerCache{Tdict},
     if haskey(cache.Wigner3j, (β₁, β₂, β₃, α₁, α₂))
         rs = cache.Wigner3j[(β₁, β₂, β₃, α₁, α₂)]
     else
-        s1n, s1d = cache.numbuf, cache.denbuf
-        s2n, snum, rnum, sden, rden = cache.s2n, cache.snum, cache.rnum, cache.sden, cache.rden
+        # get buffered variables 
+        s1n, s1d, s2n = cache.numbuf, cache.denbuf, cache.s2n
+        snum, rnum, sden, rden = cache.snum, cache.rnum, cache.sden, cache.rden
 
+        # mutating versions of the functions in the main WignerSymbols.jl file
         Δ²!(cache, s1n, s1d, j₁, j₂, j₃)
         splitsquare!(sden, rden, s1d)
-        mul_primefactorial!(cache, s2n, (β₂, β₁ - α₁, β₁ - α₂, β₃, β₃ - α₁, β₂ - α₂))
-        s2n_mul_s1n = _vadd!(s1n, s2n)
-        splitsquare!(snum, rnum, s2n_mul_s1n)
+        primefactorial!(cache, s2n, (β₂, β₁ - α₁, β₁ - α₂, β₃, β₃ - α₁, β₂ - α₂))
+        s2n_mul_s1n = _vadd!(s1n, s2n)  # multiply s2n and s1n
+        splitsquare!(snum, rnum, s2n_mul_s1n)  # split square and store in snum and rnum
 
         s = _convert!(cache, cache.snumint[], snum) // _convert!(cache, cache.sdenint[], sden)
         r = _convert!(cache, cache.rnumint[], rnum) // _convert!(cache, cache.rdenint[], rden)
 
         series = compute3jseries(cache, β₁, β₂, β₃, α₁, α₂)
-        # print(typeof(series))
+
+        # multiply s by series
         Base.GMP.MPZ.mul!(s.num, series.num)
         Base.GMP.MPZ.mul!(s.den, series.den)
+
+        # store the r and s pair into the dictionary. 
         rs = convert(Tdict, RSPair(r, s))
-        cache.Wigner3j[(β₁, β₂, β₃, α₁, α₂)] = store_result(rs)
+        cache.Wigner3j[(β₁, β₂, β₃, α₁, α₂)] = store_result(rs)  # deepcopy if necessary
     end
     return convert(T, sgn)*convert(T, rs)
 end
 
 
 
-# 6j stuff
+# 6j stuff ---
 
 function wigner6j(cache::BoundedWignerCache{Tdict}, T::Type{<:Real}, 
                   j₁, j₂, j₃, j₄, j₅, j₆) where Tdict <: Number
@@ -563,7 +704,6 @@ end
 function compute6jseries(cache::BoundedWignerCache, β₁, β₂, β₃, α₁, α₂, α₃, α₄)
                          krange = max(α₁, α₂, α₃, α₄):min(β₁, β₂, β₃)
                          T = PrimeFactorization{eltype(eltype(cache.factorialtable))}
-    
     numk = length(krange)
     nums = cache.nums
     dens = cache.dens
@@ -571,17 +711,15 @@ function compute6jseries(cache::BoundedWignerCache, β₁, β₂, β₃, α₁, 
     for (i, k) in enumerate(krange)
         num = nums[i]
         den = dens[i]
-
-        one!(num, 1)
-        mul_primefactorial!(cache, num, k+1)
+        primefactorial!(cache, num, k+1)
         num.sign = Int8(iseven(k) ? 1 : -1)
-        mul_primefactorial!(cache, den, (k-α₁, k-α₂, k-α₃, k-α₄, β₁-k, β₂-k, β₃-k))
+        primefactorial!(cache, den, (k-α₁, k-α₂, k-α₃, k-α₄, β₁-k, β₂-k, β₃-k))
         divgcd!(cache, num, den)
     end
 
     commondenominator!(cache, nums, dens, numk) 
     totalden = _convert!(cache, cache.seriesden[], cache.denbuf)
-    totalnum = sumlist!(cache, nums[1:numk])
+    totalnum = sumlist!(cache, nums, 1:numk)
 
     return totalnum//totalden
 end

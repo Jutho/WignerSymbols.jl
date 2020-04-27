@@ -8,16 +8,23 @@ julia:
   - 1.0
   - 1
   - nightly
-# env:
-#   - JULIA_NUM_THREADS=1
-#   - JULIA_NUM_THREADS=4
+env:
+  - JULIA_NUM_THREADS=1
+  - JULIA_NUM_THREADS=4
 
 notifications:
   email: false
 
+# only test threading for julia=1
 matrix:
  allow_failures:
  - julia: nightly
+ exclude:
+ - julia: "1.0"
+   env: "JULIA_NUM_THREADS=4" 
+ - julia: "nightly"
+   env: "JULIA_NUM_THREADS=4" 
+
 
 codecov: true
 coveralls: true

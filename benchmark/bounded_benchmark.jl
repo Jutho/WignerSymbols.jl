@@ -57,25 +57,29 @@ function test_threaded_specialized(n::Int)
 end
 
 maxj = 150
-##
+
+## serial benchmarks
 
 @time begin
     println("default serial:  ", test_serial(maxj))
     GC.gc()
 end
-##
+
 @time begin
     println("bounded serial:  ", test_bounded(maxj))
     GC.gc()
 end
-##
+
+## threaded benchmarks
+
 @time begin
     println("bounded thread:  ", test_threaded(maxj))
     GC.gc()
 end
-##
+
 @time begin
     println("specialized th:  ", test_threaded_specialized(maxj))
     GC.gc()
 end
+
 ##

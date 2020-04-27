@@ -13,7 +13,16 @@ include("wignercache.jl")
 include("primefactorization.jl")
 include("boundedcache.jl")
 
+"""
+This sets the initial size of the global caches for each thread, via the maximum jᵢ.
+The BoundedWignerCache for each thread is initialized lazily, so you can set this right
+after importing to set it globally, i.e.
 
+```
+using WignerSymbols
+WignerSymbols.MAX_J[] = 1000
+```
+"""
 const MAX_J = Ref(200)
 
 # imitating Base.Random.THREAD_RNGs, initialize new caches on each thread
@@ -24,6 +33,7 @@ const wigner_caches = BoundedWignerCache[]
     if @inbounds isassigned(wigner_caches, tid)
         @inbounds cache = wigner_caches[tid]
     else
+        # all caches share the global Wigner3j and Wigner6j ThreadSafeDicts
         cache = BoundedWignerCache(Wigner3j, Wigner6j, MAX_J[])
         @inbounds wigner_caches[tid] = cache
     end
@@ -166,9 +176,9 @@ throws a `DomainError` if the `jᵢ`s and `mᵢ`s are not (half)integer or `abs(
 """
 racahV(j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = racahV(
     get_local_cache(), RRBig, j₁, j₂, j₃, m₁, m₂, m₃)
-racahV(cache::WignerCache, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = racahV(
+racahV(cache::AbstractWignerCache, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂) = racahV(
     cache, RRBig, j₁, j₂, j₃, m₁, m₂, m₃)
-function racahV(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
+function racahV(cache::AbstractWignerCache, T::Type{<:Real}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m₂)
     s = wigner3j(cache, T, j₁, j₂, j₃, m₁, m₂, m₃)
     return isodd(convert(Int, -j₁ + j₂ + j₃)) ? -s : s
 end

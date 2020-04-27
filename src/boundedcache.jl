@@ -128,12 +128,6 @@ function BoundedWignerCache(
     maxt = max_j + 1
     max_prime_factors = πbound(maxfactorial)
 
-    addbuffer = BigInt(;nbits=bound_factorial(maxfactorial))
-    seriesnum = BigInt(;nbits=bound_factorial(maxfactorial))
-    seriesden = BigInt(;nbits=bound_factorial(maxfactorial))
-
-    Base.GMP.MPZ.set!(addbuffer, big(0))
-
     cache = BoundedWignerCache{Tdict}(
         multiplier,
         Ref{Int}(max_j),
@@ -149,14 +143,14 @@ function BoundedWignerCache(
         factorbuffer(max_prime_factors),  # numbuf
         factorbuffer(max_prime_factors),  # denbuf
 
-        Ref{BigInt}(addbuffer),
-        Ref{BigInt}(seriesnum),
-        Ref{BigInt}(seriesden),
+        Ref{BigInt}(big(0)),
+        Ref{BigInt}(big(0)),
+        Ref{BigInt}(big(0)),
         
-        Ref{BigInt}(BigInt(;nbits=bound_factorial(maxfactorial))),
-        Ref{BigInt}(BigInt(;nbits=bound_factorial(maxfactorial))),
-        Ref{BigInt}(BigInt(;nbits=bound_factorial(maxfactorial))),
-        Ref{BigInt}(BigInt(;nbits=bound_factorial(maxfactorial))),
+        Ref{BigInt}(big(0)),
+        Ref{BigInt}(big(0)),
+        Ref{BigInt}(big(0)),
+        Ref{BigInt}(big(0)),
 
         factorbuffer(max_prime_factors),  # s2n
         factorbuffer(max_prime_factors),  # snum 

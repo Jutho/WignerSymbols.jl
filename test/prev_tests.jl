@@ -10,7 +10,7 @@ largejlist = 0:1//2:1000
 cache = WignerCache()
 
 # test recurrence relations: Phys Rev E 57, 7274 (1998)
-@testset "bounded wigner3j: test recurrence relations" begin
+@testset "wigner3j: test recurrence relations" begin
     for k = 1:10
         j2 = convert(BigFloat, rand(0:1//2:1000))
         j3 = convert(BigFloat, rand(0:1//2:1000))
@@ -29,7 +29,7 @@ cache = WignerCache()
     end
 end
 
-@testset "bounded wigner3j: test orthogonality relations" begin
+@testset "wigner3j: test orthogonality relations" begin
     # equivalent to Clebsch-Gordan orthogonality, now test using Float32
     for j1 in smalljlist, j2 in smalljlist
         d1::Int = 2*j1+1

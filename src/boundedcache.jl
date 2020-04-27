@@ -123,7 +123,7 @@ function BoundedWignerCache(
         dict6j::ThreadSafeDict{NTuple{6,UInt},Tdict},
         max_j::Integer, nj=6) where {Tdict}
 
-    multiplier = Int(2 + round(nj / 3))
+    multiplier = Int(ceil(2 + round(nj / 3)))
     maxfactorial = multiplier * max_j + 1
     maxt = max_j + 1
     max_prime_factors = πbound(maxfactorial)
@@ -234,7 +234,10 @@ end
 Convenience function for multiplying together a bunch of primefactorials in a buffer.
 """
 function mul_primefactorial!(cache::BoundedWignerCache, 
-    fact_dest::AbstractPrimeFactorization{T}, ns::NTuple{N, Integer}) where {T, N}
+                             fact_dest::AbstractPrimeFactorization{T}, 
+                             ns::NTuple{N, Integer}) where {T, N}
+
+    one!(fact_dest, 1)  # reset factor destination to +1
     for n in ns
         mul_primefactorial!(cache, fact_dest, n)
     end
@@ -251,19 +254,17 @@ function one!(fact_dest::AbstractPrimeFactorization{T}, sign::Integer) where T
     return
 end
 
-# function divgcd!(cache::BoundedWignerCache, 
-#         a::AbstractPrimeFactorization, b::AbstractPrimeFactorization)
-#     af, bf = a.powers, b.powers
-#     last_nonzero_a = findfirst(iszero, af) - 1
-#     last_nonzero_b = findfirst(iszero, bf) - 1
+function divgcd!(cache::BoundedWignerCache, 
+        a::AbstractPrimeFactorization, b::AbstractPrimeFactorization)
 
-#     for k = 1:min(last_nonzero_a, last_nonzero_b)
-#         gk = min(af[k], bf[k])
-#         af[k] -= gk
-#         bf[k] -= gk
-#     end
-#     return
-# end
+    af, bf = a.powers, b.powers
+    @inbounds for k = 1:min(a.last_nonzero_index, b.last_nonzero_index)
+        gk = min(af[k], bf[k])
+        af[k] -= gk
+        bf[k] -= gk
+    end
+    return
+end
 
 function _vmin!(a::StaticPrimeFactorization{U}, 
     b::StaticPrimeFactorization{U}) where {U<:Unsigned}
@@ -458,9 +459,7 @@ function wigner3j(cache::BoundedWignerCache{Tdict},
 
     new_max_j = Int(ceil(max(abs(j₁), abs(j₂), abs(j₃))))
     if(cache.max_j[] < new_max_j)
-        println("GROWING TO $(new_max_j)")
         grow!(2 * new_max_j, cache)
-        println("GROWN")
     end
 
     # we reorder such that j₁ >= j₂ >= j₃ and m₁ >= 0 or m₁ == 0 && m₂ >= 0
@@ -484,7 +483,6 @@ function wigner3j(cache::BoundedWignerCache{Tdict},
 
         Δ²!(cache, s1n, s1d, j₁, j₂, j₃)
         splitsquare!(sden, rden, s1d)
-        one!(s2n, 1)
         mul_primefactorial!(cache, s2n, (β₂, β₁ - α₁, β₁ - α₂, β₃, β₃ - α₁, β₂ - α₂))
         s2n_mul_s1n = _vadd!(s1n, s2n)
         splitsquare!(snum, rnum, s2n_mul_s1n)
@@ -500,4 +498,96 @@ function wigner3j(cache::BoundedWignerCache{Tdict},
         cache.Wigner3j[(β₁, β₂, β₃, α₁, α₂)] = store_result(rs)
     end
     return convert(T, sgn)*convert(T, rs)
+end
+
+
+
+# 6j stuff
+
+function wigner6j(cache::BoundedWignerCache{Tdict}, T::Type{<:Real}, 
+                  j₁, j₂, j₃, j₄, j₅, j₆) where Tdict <: Number
+    # check validity of `jᵢ`s
+    for jᵢ in (j₁, j₂, j₃, j₄, j₅, j₆)
+        (ishalfinteger(jᵢ) && jᵢ >= zero(jᵢ)) || throw(DomainError("invalid jᵢ", jᵢ))
+    end
+
+    α̂₁ = (j₁, j₂, j₃)
+    α̂₂ = (j₁, j₆, j₅)
+    α̂₃ = (j₂, j₄, j₆)
+    α̂₄ = (j₃, j₄, j₅)
+
+    # check triangle conditions
+    if !(δ(α̂₁...) && δ(α̂₂...) && δ(α̂₃...) && δ(α̂₄...))
+        return zero(T)
+    end
+    # reduce
+    α₁ = convert(UInt, +(α̂₁...))
+    α₂ = convert(UInt, +(α̂₂...))
+    α₃ = convert(UInt, +(α̂₃...))
+    α₄ = convert(UInt, +(α̂₄...))
+    β₁ = convert(UInt, j₁+j₂+j₄+j₅)
+    β₂ = convert(UInt, j₁+j₃+j₄+j₆)
+    β₃ = convert(UInt, j₂+j₃+j₅+j₆)
+
+    # we should have αᵢ < βⱼ, ∀ i, j and ∑ᵢ αᵢ = ∑ⱼ βⱼ
+    # now order them as β₁ >= β₂ >= β₃ >= α₁ >= α₂ >= α₃ >= α₄
+    (β₁, β₂, β₃, α₁, α₂, α₃, α₄) = reorder6j(β₁, β₂, β₃, α₁, α₂, α₃, α₄)
+
+    new_max_j = Int(ceil(max(abs(j₁), abs(j₂), abs(j₃))))
+    if(cache.max_j[] < new_max_j)
+        grow!(2 * new_max_j, cache)
+    end
+
+    # dictionary lookup or compute
+    if haskey(cache.Wigner6j, (β₁, β₂, β₃, α₁, α₂, α₃))
+        rs = cache.Wigner6j[(β₁, β₂, β₃, α₁, α₂, α₃)]
+    else
+        # order irrelevant: product remains the same under action of reorder6j
+        n₁, d₁ = Δ²(cache, α̂₁...)
+        n₂, d₂ = Δ²(cache, α̂₂...)
+        n₃, d₃ = Δ²(cache, α̂₃...)
+        n₄, d₄ = Δ²(cache, α̂₄...)
+
+        snum, rnum = splitsquare(n₁ * n₂ * n₃ * n₄)
+        sden, rden = splitsquare(d₁ * d₂ * d₃ * d₄)
+
+        snu, sden = divgcd!(snum, sden)
+        rnu, rden = divgcd!(rnum, rden)
+
+        s = _convert(cache, BigInt, snum) // _convert(cache, BigInt, sden)
+        r = _convert(cache, BigInt, rnum) // _convert(cache, BigInt, rden)
+        s *= compute6jseries(cache, β₁, β₂, β₃, α₁, α₂, α₃, α₄)
+
+        rs = convert(Tdict, RSPair(r, s))
+        cache.Wigner6j[(β₁, β₂, β₃, α₁, α₂, α₃)] = store_result(rs)
+    end
+    return convert(T, rs.s) * convert(T, signedroot(rs.r))
+end
+
+
+# compute the sum appearing in the 6j symbol
+function compute6jseries(cache::BoundedWignerCache, β₁, β₂, β₃, α₁, α₂, α₃, α₄)
+                         krange = max(α₁, α₂, α₃, α₄):min(β₁, β₂, β₃)
+                         T = PrimeFactorization{eltype(eltype(cache.factorialtable))}
+    
+    numk = length(krange)
+    nums = cache.nums
+    dens = cache.dens
+
+    for (i, k) in enumerate(krange)
+        num = nums[i]
+        den = dens[i]
+
+        one!(num, 1)
+        mul_primefactorial!(cache, num, k+1)
+        num.sign = Int8(iseven(k) ? 1 : -1)
+        mul_primefactorial!(cache, den, (k-α₁, k-α₂, k-α₃, k-α₄, β₁-k, β₂-k, β₃-k))
+        divgcd!(cache, num, den)
+    end
+
+    commondenominator!(cache, nums, dens, numk) 
+    totalden = _convert!(cache, cache.seriesden[], cache.denbuf)
+    totalnum = sumlist!(cache, nums[1:numk])
+
+    return totalnum//totalden
 end

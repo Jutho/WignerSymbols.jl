@@ -187,7 +187,7 @@ the `jᵢ`s are not integer or halfinteger.
 """
 wigner6j(j₁, j₂, j₃, j₄, j₅, j₆) = wigner6j(get_local_cache(), RRBig, j₁, j₂, j₃, j₄, j₅, j₆)
 wigner6j(T::Type{<:Real}, j₁, j₂, j₃, j₄, j₅, j₆) = wigner6j(get_local_cache(), T, j₁, j₂, j₃, j₄, j₅, j₆)
-wigner6j(cache::WignerCache, j₁, j₂, j₃, j₄, j₅, j₆) = wigner6j(cache, RRBig, j₁, j₂, j₃, j₄, j₅, j₆)
+wigner6j(cache::AbstractWignerCache, j₁, j₂, j₃, j₄, j₅, j₆) = wigner6j(cache, RRBig, j₁, j₂, j₃, j₄, j₅, j₆)
 function wigner6j(cache::WignerCache, T::Type{<:Real}, j₁, j₂, j₃, j₄, j₅, j₆)
     # check validity of `jᵢ`s
     for jᵢ in (j₁, j₂, j₃, j₄, j₅, j₆)
@@ -252,9 +252,9 @@ the `jᵢ`s and `J`s are not integer or halfinteger.
 """
 racahW(j₁, j₂, J, j₃, J₁₂, J₂₃) = racahW(
     get_local_cache(), RRBig, j₁, j₂, J, j₃, J₁₂, J₂₃)
-racahW(cache::WignerCache, j₁, j₂, J, j₃, J₁₂, J₂₃) = racahW(
+racahW(cache::AbstractWignerCache, j₁, j₂, J, j₃, J₁₂, J₂₃) = racahW(
     cache, RRBig, j₁, j₂, J, j₃, J₁₂, J₂₃)
-function racahW(cache::WignerCache, T::Type{<:Real}, j₁, j₂, J, j₃, J₁₂, J₂₃)
+function racahW(cache::AbstractWignerCache, T::Type{<:Real}, j₁, j₂, J, j₃, J₁₂, J₂₃)
     s = wigner6j(cache, T, j₁, j₂, J₁₂, j₃, J, J₂₃)
     if !iszero(s) && isodd(convert(Int, j₁ + j₂ + j₃ + J))
         return -s

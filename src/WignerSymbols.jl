@@ -13,16 +13,6 @@ include("primefactorization.jl")
 const Wigner3j = Dict{Tuple{UInt,UInt,UInt,Int,Int},Tuple{Rational{BigInt},Rational{BigInt}}}()
 const Wigner6j = Dict{NTuple{6,UInt},Tuple{Rational{BigInt},Rational{BigInt}}}()
 
-function __init__()
-    global bigone, bigprimetable, Wigner3j, Wigner6j
-    bigone[] = big(1)
-    bigprimetable[1][1] = big(2)
-    bigprimetable[2][1] = big(3)
-    bigprimetable[3][1] = big(5)
-    Base.rehash!(Wigner3j)
-    Base.rehash!(Wigner6j)
-end
-
 # check integerness and correctness of (j,m) angular momentum
 ϵ(j, m) = (abs(m) <= j && ishalfinteger(j) && isinteger(j-m) && isinteger(j+m))
 

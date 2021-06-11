@@ -2,16 +2,24 @@ __precompile__(true)
 module WignerSymbols
 export δ, Δ, clebschgordan, wigner3j, wigner6j, racahV, racahW, HalfInteger
 
-using Base.GMP.MPZ
 using HalfIntegers
 using RationalRoots
+using LRUCache
 const RRBig = RationalRoot{BigInt}
 import RationalRoots: _convert
 
+include("growinglist.jl")
 include("primefactorization.jl")
+convert(BigInt, primefactorial(401)) # trigger compilation and generate some fixed data
 
-const Wigner3j = Dict{Tuple{UInt,UInt,UInt,Int,Int},Tuple{Rational{BigInt},Rational{BigInt}}}()
-const Wigner6j = Dict{NTuple{6,UInt},Tuple{Rational{BigInt},Rational{BigInt}}}()
+const Key3j = Tuple{UInt,UInt,UInt,Int,Int}
+const Key6j = NTuple{6,UInt}
+
+# const Wigner3j = Dict{Key3j,Tuple{Rational{BigInt},Rational{BigInt}}}()
+# const Wigner6j = Dict{Key6j,Tuple{Rational{BigInt},Rational{BigInt}}}()
+#
+const Wigner3j = LRU{Key3j,Tuple{Rational{BigInt},Rational{BigInt}}}(; maxsize = 10^6)
+const Wigner6j = LRU{Key6j,Tuple{Rational{BigInt},Rational{BigInt}}}(; maxsize = 10^6)
 
 # check integerness and correctness of (j,m) angular momentum
 ϵ(j, m) = (abs(m) <= j && ishalfinteger(j) && isinteger(j-m) && isinteger(j+m))
@@ -44,7 +52,8 @@ function Δ(T::Type{<:Real}, j₁, j₂, j₃)
         return zero(T)
     end
     n, d = Δ²(j₁, j₂, j₃)
-    return convert(T, signedroot(RationalRoot{BigInt}, n//d))
+    r = Base.unsafe_rational(n, d)
+    return convert(T, signedroot(RationalRoot{BigInt}, r))
 end
 
 """
@@ -64,6 +73,11 @@ function wigner3j(T::Type{<:Real}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m�
     for (jᵢ,mᵢ) in ((j₁, m₁), (j₂, m₂), (j₃, m₃))
         ϵ(jᵢ, mᵢ) || throw(DomainError((jᵢ, mᵢ), "invalid combination (jᵢ, mᵢ)"))
     end
+    return _wigner3j(T, HalfInteger.((j₁, j₂, j₃, m₁, m₂, m₃))...)
+end
+
+function _wigner3j(T::Type{<:Real}, j₁::HalfInteger, j₂::HalfInteger, j₃::HalfInteger,
+                                    m₁::HalfInteger, m₂::HalfInteger, m₃::HalfInteger)
     # check triangle condition and m₁+m₂+m₃ == 0
     if !δ(j₁, j₂, j₃) || !iszero(m₁+m₂+m₃)
         return zero(T)
@@ -74,9 +88,9 @@ function wigner3j(T::Type{<:Real}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m�
     # TODO: do we also want to use Regge symmetries?
     α₁ = convert(Int, j₂ - m₁ - j₃ ) # can be negative
     α₂ = convert(Int, j₁ + m₂ - j₃ ) # can be negative
-    β₁ = convert(Int, j₁ + j₂ - j₃ )
-    β₂ = convert(Int, j₁ - m₁ )
-    β₃ = convert(Int, j₂ + m₂ )
+    β₁ = convert(UInt, j₁ + j₂ - j₃ )
+    β₂ = convert(UInt, j₁ - m₁ )
+    β₃ = convert(UInt, j₂ + m₂ )
 
     # extra sign in definition: α₁ - α₂ = j₁ + m₂ - j₂ + m₁ = j₁ - j₂ + m₃
     sgn = isodd(α₁ - α₂) ? -sgn : sgn
@@ -90,8 +104,10 @@ function wigner3j(T::Type{<:Real}, j₁, j₂, j₃, m₁, m₂, m₃ = -m₁-m�
 
         snum, rnum = splitsquare(s1n*s2n)
         sden, rden = splitsquare(s1d)
-        s = convert(BigInt, snum) // convert(BigInt, sden)
-        r = convert(BigInt, rnum) // convert(BigInt, rden)
+        snum, sden = divgcd!(snum, sden)
+        rnum, rden = divgcd!(rnum, rden)
+        s = Base.unsafe_rational(convert(BigInt, snum), convert(BigInt, sden))
+        r = Base.unsafe_rational(convert(BigInt, rnum), convert(BigInt, rden))
         s *= compute3jseries(β₁, β₂, β₃, α₁, α₂)
         Wigner3j[(β₁, β₂, β₃, α₁, α₂)] = (r,s)
     end
@@ -151,7 +167,11 @@ function wigner6j(T::Type{<:Real}, j₁, j₂, j₃, j₄, j₅, j₆)
     for jᵢ in (j₁, j₂, j₃, j₄, j₅, j₆)
         (ishalfinteger(jᵢ) && jᵢ >= zero(jᵢ)) || throw(DomainError("invalid jᵢ", jᵢ))
     end
+    return _wigner6j(T, HalfInteger.((j₁, j₂, j₃, j₄, j₅, j₆))...)
+end
 
+function _wigner6j(T::Type{<:Real}, j₁::HalfInteger, j₂::HalfInteger, j₃::HalfInteger,
+                                    j₄::HalfInteger, j₅::HalfInteger, j₆::HalfInteger)
     α̂₁ = (j₁, j₂, j₃)
     α̂₂ = (j₁, j₆, j₅)
     α̂₃ = (j₂, j₄, j₆)
@@ -186,10 +206,10 @@ function wigner6j(T::Type{<:Real}, j₁, j₂, j₃, j₄, j₅, j₆)
 
         snum, rnum = splitsquare(n₁ * n₂ * n₃ * n₄)
         sden, rden = splitsquare(d₁ * d₂ * d₃ * d₄)
-        snu, sden = divgcd!(snum, sden)
-        rnu, rden = divgcd!(rnum, rden)
-        s = convert(BigInt, snum) // convert(BigInt, sden)
-        r = convert(BigInt, rnum) // convert(BigInt, rden)
+        snum, sden = divgcd!(snum, sden)
+        rnum, rden = divgcd!(rnum, rden)
+        s = Base.unsafe_rational(convert(BigInt, snum), convert(BigInt, sden))
+        r = Base.unsafe_rational(convert(BigInt, rnum), convert(BigInt, rden))
         s *= compute6jseries(β₁, β₂, β₃, α₁, α₂, α₃, α₄)
 
         Wigner6j[(β₁, β₂, β₃, α₁, α₂, α₃)] = (r, s)
@@ -223,12 +243,13 @@ end
 # squared triangle coefficient
 function Δ²(j₁, j₂, j₃)
     # also checks the triangle conditions by converting to unsigned integer:
-    n1 = primefactorial( convert(UInt, + j₁ + j₂ - j₃) )
+    n1 = copy(primefactorial( convert(UInt, + j₁ + j₂ - j₃) ))
     n2 = primefactorial( convert(UInt, + j₁ - j₂ + j₃) )
     n3 = primefactorial( convert(UInt, - j₁ + j₂ + j₃) )
-    d = primefactorial( convert(UInt, j₁ + j₂ + j₃ + 1) )
+    num = mul!(mul!(n1, n2), n3)
+    den = copy(primefactorial( convert(UInt, j₁ + j₂ + j₃ + 1) ))
     # result
-    return (n1*n2*n3), d
+    return divgcd!(num, den)
 end
 
 # reorder parameters determining the 3j symbol to canonical order:
@@ -278,14 +299,30 @@ function compute3jseries(β₁, β₂, β₃, α₁, α₂)
     dens = Vector{T}(undef, length(krange))
     for (i, k) in enumerate(krange)
         num = iseven(k) ? one(T) : -one(T)
-        den = primefactorial(k)*primefactorial(k-α₁)*primefactorial(k-α₂)*
-            primefactorial(β₁-k)*primefactorial(β₂-k)*primefactorial(β₃-k)
-        nums[i], dens[i] = divgcd!(num, den)
+        den = copy(primefactorial(k))
+        den = mul!(mul!(den, primefactorial(k-α₁)), primefactorial(k-α₂))
+        den = mul!(mul!(mul!(den, primefactorial(β₁-k)),
+                                    primefactorial(β₂-k)),
+                                        primefactorial(β₃-k))
+        nums[i], dens[i] = num, den
     end
     den = commondenominator!(nums, dens)
     totalnum = sumlist!(nums)
     totalden = convert(BigInt, den)
-    return totalnum//totalden
+    for n = 1:length(den.powers)
+        p = bigprime(n)
+        while den.powers[n] > 0
+            q, r = divrem(totalnum, p)
+            if iszero(r)
+                totalnum = q
+                den.powers[n] -= 1
+            else
+                break
+            end
+        end
+    end
+    totalden = convert(BigInt, den)
+    return Base.unsafe_rational(totalnum, totalden)
 end
 
 # compute the sum appearing in the 6j symbol
@@ -296,15 +333,32 @@ function compute6jseries(β₁, β₂, β₃, α₁, α₂, α₃, α₄)
     nums = Vector{T}(undef, length(krange))
     dens = Vector{T}(undef, length(krange))
     for (i, k) in enumerate(krange)
-        num = iseven(k) ? primefactorial(k+1) : -primefactorial(k+1)
-        den = primefactorial(k-α₁)*primefactorial(k-α₂)*primefactorial(k-α₃)*
-            primefactorial(k-α₄)*primefactorial(β₁-k)*primefactorial(β₂-k)*primefactorial(β₃-k)
+        num = iseven(k) ? copy(primefactorial(k+1)) : neg!(copy(primefactorial(k+1)))
+        den = copy(primefactorial(k-α₁))
+        den = mul!(mul!(mul!(den, primefactorial(k-α₂)),
+                                    primefactorial(k-α₃)),
+                                        primefactorial(k-α₄))
+        den = mul!(mul!(mul!(den, primefactorial(β₁-k)),
+                                    primefactorial(β₂-k)),
+                                        primefactorial(β₃-k))
         nums[i], dens[i] = divgcd!(num, den)
     end
     den = commondenominator!(nums, dens)
     totalnum = sumlist!(nums)
+    for n = 1:length(den.powers)
+        p = bigprime(n)
+        while den.powers[n] > 0
+            q, r = divrem(totalnum, p)
+            if iszero(r)
+                totalnum = q
+                den.powers[n] -= 1
+            else
+                break
+            end
+        end
+    end
     totalden = convert(BigInt, den)
-    return totalnum//totalden
+    return Base.unsafe_rational(totalnum, totalden)
 end
 
 end # module

@@ -50,27 +50,27 @@ end
     end
 end
 
-# test recurrence relations: Phys Rev E 57, 7274 (1998)
-@threads for i = 1:N
-    @testset "wigner3j: recurrence relations, thread $i" begin
-        for k = 1:div(8,N)
-            j2 = convert(BigFloat, rand(largejlist))
-            j3 = convert(BigFloat, rand(largejlist))
-            m2 = -convert(BigFloat, rand(-j2:0))
-            m3 = convert(BigFloat, rand(-j3:0))
-
-            for j in max(abs(j2-j3),abs(m2+m3))+1:(j2+j3)-1
-                X = j*sqrt(((j+1)^2-(j2-j3)^2)*((j2+j3+1)^2-(j+1)^2)*((j+1)^2-(m2+m3)^2))
-                Y = (2*j+1)*((m2+m3)*(j2*(j2+1)-j3*(j3+1)) - (m2-m3)*j*(j+1))
-                Z = (j+1)*sqrt((j^2-(j2-j3)^2)*((j2+j3+1)^2-j^2)*(j^2-(m2+m3)^2))
-                tol = 10*max(abs(X),abs(Y),abs(Z))*eps(BigFloat)
-                @test (X*wigner3j(BigFloat,j+1,j2,j3,-m2-m3,m2,m3) +
-                            Z*wigner3j(BigFloat,j-1,j2,j3,-m2-m3,m2,m3)) ≈
-                                (-Y*wigner3j(BigFloat,j,j2,j3,-m2-m3,m2,m3)) atol=tol
-            end
-        end
-    end
-end
+# # test recurrence relations: Phys Rev E 57, 7274 (1998)
+# @threads for i = 1:N
+#     @testset "wigner3j: recurrence relations, thread $i" begin
+#         for k = 1:div(8,N)
+#             j2 = convert(BigFloat, rand(largejlist))
+#             j3 = convert(BigFloat, rand(largejlist))
+#             m2 = -convert(BigFloat, rand(-j2:0))
+#             m3 = convert(BigFloat, rand(-j3:0))
+#
+#             for j in max(abs(j2-j3),abs(m2+m3))+1:(j2+j3)-1
+#                 X = j*sqrt(((j+1)^2-(j2-j3)^2)*((j2+j3+1)^2-(j+1)^2)*((j+1)^2-(m2+m3)^2))
+#                 Y = (2*j+1)*((m2+m3)*(j2*(j2+1)-j3*(j3+1)) - (m2-m3)*j*(j+1))
+#                 Z = (j+1)*sqrt((j^2-(j2-j3)^2)*((j2+j3+1)^2-j^2)*(j^2-(m2+m3)^2))
+#                 tol = 10*max(abs(X),abs(Y),abs(Z))*eps(BigFloat)
+#                 @test (X*wigner3j(BigFloat,j+1,j2,j3,-m2-m3,m2,m3) +
+#                             Z*wigner3j(BigFloat,j-1,j2,j3,-m2-m3,m2,m3)) ≈
+#                                 (-Y*wigner3j(BigFloat,j,j2,j3,-m2-m3,m2,m3)) atol=tol
+#             end
+#         end
+#     end
+# end
 
 @threads for i = 1:N
     @testset "wigner3j: orthogonality relations, thread $i" begin

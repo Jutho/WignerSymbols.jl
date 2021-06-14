@@ -1,4 +1,4 @@
-using Base.Threads: Atomic, SpinLock
+using Base.Threads: Atomic, SpinLock, atomic_add!
 
 # ListSegment represents a segment from a GrowingList; it has a list `data` to hold the elements, filled up to `currentlength`, and possibly a reference to the next segment, if it is not the final segment.
 mutable struct ListSegment{T}
@@ -66,7 +66,7 @@ The list is grown by adding new segments using a linked list data structure. Thi
 """
 mutable struct GrowingList{T} <: AbstractVector{T}
     first::ListSegment{T}
-    totallength::Int
+    totallength::Atomic{Int}
     growthfactor::Float64
     lock::SpinLock
     function GrowingList{T}(iter;
@@ -88,7 +88,7 @@ mutable struct GrowingList{T} <: AbstractVector{T}
             _unsafe_getindex(first, i, val, ceil(Int, (i-1)*growthfactor))
             next = iterate(iter, state)
         end
-        return new{T}(first, i, growthfactor, SpinLock())
+        return new{T}(first, Atomic{Int}(i), growthfactor, SpinLock())
     end
 end
 GrowingList(v::Vector{T}; sizehint = max(16, length(v)), growthfactor = 2.) where {T} =
@@ -100,9 +100,9 @@ GrowingList{T}(; sizehint = 16, growthfactor = 2.) where {T} =
 GrowingList(; sizehint = 16, growthfactor = 2.) =
     GrowingList{Any}((); sizehint = sizehint, growthfactor = growthfactor)
 
-Base.length(l::GrowingList) = l.totallength
+Base.length(l::GrowingList) = l.totallength[]
 function _raise_length!(l::GrowingList)
-    l.totallength += 1
+    atomic_add!(l.totallength, 1)
 end
 
 Base.size(l::GrowingList) = (length(l),)

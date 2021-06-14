@@ -366,17 +366,12 @@ function compute6jseries(β₁, β₂, β₃, α₁, α₂, α₃, α₄)
 end
 
 function _precompile_()
-    @assert precompile(prime, (Int,))
-    @assert precompile(primefactor, (Int,))
-    @assert precompile(primefactorial, (Int,))
     @assert precompile(wigner3j, (Type{Float64}, Int, Int, Int, Int, Int, Int))
     @assert precompile(wigner6j, (Type{Float64}, Int, Int, Int, Int, Int, Int))
-    @assert precompile(wigner3j, (Type{BigFloat}, HalfInt, HalfInt, HalfInt, HalfInt, HalfInt, HalfInt))
-    @assert precompile(wigner6j, (Type{BigFloat}, HalfInt, HalfInt, HalfInt, HalfInt, HalfInt, HalfInt))
-    @assert precompile(getindex, (GrowingList{Int}, Int))
-    @assert precompile(getindex, (GrowingList{BigInt}, Int))
-    @assert precompile(get!, (GrowingList{Int}, Int, Int))
-    @assert precompile(get!, (GrowingList{BigInt}, Int, BigInt))
+    @assert precompile(wigner3j, (Type{BigFloat}, Rational{Int}, Rational{Int}, Rational{Int}, Rational{Int}, Rational{Int}, Rational{Int}))
+    @assert precompile(wigner6j, (Type{BigFloat}, Rational{Int}, Rational{Int}, Rational{Int}, Rational{Int}, Rational{Int}, Rational{Int}))
+    @assert precompile(wigner3j, (Type{RRBig}, HalfInt, HalfInt, HalfInt, HalfInt, HalfInt, HalfInt))
+    @assert precompile(wigner6j, (Type{RRBig}, HalfInt, HalfInt, HalfInt, HalfInt, HalfInt, HalfInt))
 end
 _precompile_()
 

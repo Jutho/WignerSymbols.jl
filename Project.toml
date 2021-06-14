@@ -10,11 +10,11 @@ Primes = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
 LRUCache = "8ac3fa9e-de4c-5943-b1dc-09c6b5f20637"
 
 [compat]
-RationalRoots = "0.1, 0.2"
+RationalRoots = "0.1 - 1"
 HalfIntegers = "1"
-Primes = "0.4, 0.5"
+Primes = "0.4 - 1"
 LRUCache = "1.3"
-julia = "1"
+julia = "1.4"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

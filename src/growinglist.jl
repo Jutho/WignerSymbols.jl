@@ -66,7 +66,7 @@ The list is grown by adding new segments using a linked list data structure. Thi
 """
 mutable struct GrowingList{T} <: AbstractVector{T}
     first::ListSegment{T}
-    totallength::Atomic{Int}
+    totallength::Int
     growthfactor::Float64
     lock::SpinLock
     function GrowingList{T}(iter;
@@ -88,7 +88,7 @@ mutable struct GrowingList{T} <: AbstractVector{T}
             _unsafe_getindex(first, i, val, ceil(Int, (i-1)*growthfactor))
             next = iterate(iter, state)
         end
-        return new{T}(first, Atomic{Int}(i), growthfactor, SpinLock())
+        return new{T}(first, i, growthfactor, SpinLock())
     end
 end
 GrowingList(v::Vector{T}; sizehint = max(16, length(v)), growthfactor = 2.) where {T} =
@@ -100,7 +100,11 @@ GrowingList{T}(; sizehint = 16, growthfactor = 2.) where {T} =
 GrowingList(; sizehint = 16, growthfactor = 2.) =
     GrowingList{Any}((); sizehint = sizehint, growthfactor = growthfactor)
 
-Base.length(l::GrowingList) = l.totallength[]
+Base.length(l::GrowingList) = l.totallength
+function _raise_length!(l::GrowingList)
+    l.totallength += 1
+end
+
 Base.size(l::GrowingList) = (length(l),)
 
 @inline function Base.getindex(l::GrowingList, n::Int)
@@ -109,46 +113,51 @@ Base.size(l::GrowingList) = (length(l),)
 end
 
 function Base.get!(l::GrowingList, n::Int, default)
-    if n <= l.totallength[]
+    if n <= length(l)
         return _unsafe_getindex(l.first, n)
     else
-        lock(l.lock)
+        ll = l.lock
+        lock(ll)
         len = length(l)
+        nextlen = len + 1
         if n <= len # try again, maybe already ok now
-            unlock(l.lock)
+            unlock(ll)
             return _unsafe_getindex(l.first, n)
-        elseif n == len+1
+        elseif n == nextlen
             _unsafe_get!(l.first, n, default, ceil(Int, (l.growthfactor-1)*len))
-            Base.Threads.atomic_add!(l.totallength, 1)
-            unlock(l.lock)
+            _raise_length!(l)
+            unlock(ll)
             return default
         else
-            @show Base.Threads.threadid(), l.totallength[], n
-            unlock(l.lock)
-            throw(ArgumentError("can only insert new element at next index: $(len+1)"))
+            unlock(ll)
+            _inserterror(nextlen)
         end
     end
 end
+
+@noinline _inserterror(len::Int) =
+    throw(ArgumentError("can only insert new element at next index: " * string(len)))
 
 function Base.get!(default::Base.Callable, l::GrowingList, n::Int)
     if n <= l.totallength[]
         return _unsafe_getindex(l.first, n)
     else
         v = default()
-        lock(l.lock)
-        len = l.totallength[]
+        ll = l.lock
+        lock(ll)
+        len = length(l)
+        nextlen = len + 1
         if n <= len # try again, maybe already ok now
-            unlock(l.lock)
+            unlock(ll)
             return _unsafe_getindex(l.first, n)
-        elseif n == len+1
+        elseif n == nextlen
             _unsafe_get!(l.first, n, v, ceil(Int, (l.growthfactor-1)*len))
-            Base.Threads.atomic_add!(l.totallength, 1)
-            unlock(l.lock)
+            _raise_length!(l)
+            unlock(ll)
             return v
         else
-            @show Base.Threads.threadid(), l.totallength[], n
-            unlock(l.lock)
-            throw(ArgumentError("can only insert new element at next index: $(len+1)"))
+            unlock(ll)
+            _inserterror(nextlen)
         end
     end
 end

@@ -1,4 +1,3 @@
-__precompile__(true)
 module WignerSymbols
 export δ, Δ, clebschgordan, wigner3j, wigner6j, racahV, racahW, HalfInteger
 
@@ -9,17 +8,22 @@ const RRBig = RationalRoot{BigInt}
 import RationalRoots: _convert
 
 include("growinglist.jl")
+include("bigint.jl") # additional GMP BigInt functionality not wrapped in Base.GMP.MPZ
 include("primefactorization.jl")
 convert(BigInt, primefactorial(401)) # trigger compilation and generate some fixed data
 
 const Key3j = Tuple{UInt,UInt,UInt,Int,Int}
 const Key6j = NTuple{6,UInt}
 
-# const Wigner3j = Dict{Key3j,Tuple{Rational{BigInt},Rational{BigInt}}}()
-# const Wigner6j = Dict{Key6j,Tuple{Rational{BigInt},Rational{BigInt}}}()
-#
 const Wigner3j = LRU{Key3j,Tuple{Rational{BigInt},Rational{BigInt}}}(; maxsize = 10^6)
 const Wigner6j = LRU{Key6j,Tuple{Rational{BigInt},Rational{BigInt}}}(; maxsize = 10^6)
+
+function set_buffer3j_size!(; maxsize)
+    resize!(Wigner3j; maxsize = maxsize)
+end
+function set_buffer6j_size!(; maxsize)
+    resize!(Wigner6j; maxsize = maxsize)
+end
 
 # check integerness and correctness of (j,m) angular momentum
 ϵ(j, m) = (abs(m) <= j && ishalfinteger(j) && isinteger(j-m) && isinteger(j+m))
@@ -360,5 +364,20 @@ function compute6jseries(β₁, β₂, β₃, α₁, α₂, α₃, α₄)
     totalden = convert(BigInt, den)
     return Base.unsafe_rational(totalnum, totalden)
 end
+
+function _precompile_()
+    @assert precompile(prime, (Int,))
+    @assert precompile(primefactor, (Int,))
+    @assert precompile(primefactorial, (Int,))
+    @assert precompile(wigner3j, (Type{Float64}, Int, Int, Int, Int, Int, Int))
+    @assert precompile(wigner6j, (Type{Float64}, Int, Int, Int, Int, Int, Int))
+    @assert precompile(wigner3j, (Type{BigFloat}, HalfInt, HalfInt, HalfInt, HalfInt, HalfInt, HalfInt))
+    @assert precompile(wigner6j, (Type{BigFloat}, HalfInt, HalfInt, HalfInt, HalfInt, HalfInt, HalfInt))
+    @assert precompile(getindex, (GrowingList{Int}, Int))
+    @assert precompile(getindex, (GrowingList{BigInt}, Int))
+    @assert precompile(get!, (GrowingList{Int}, Int, Int))
+    @assert precompile(get!, (GrowingList{BigInt}, Int, BigInt))
+end
+_precompile_()
 
 end # module

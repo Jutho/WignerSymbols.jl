@@ -1,14 +1,12 @@
 using Primes: isprime
 import Base.divgcd
 
-using Base.GMP.MPZ
-
-const primetable = GrowingList([2, 3]; sizehint = 256)
-const factortable = GrowingList([UInt8[], UInt8[1], UInt8[0,1]]; sizehint = 1024)
-const factorialtable = GrowingList([UInt32[], UInt32[1], UInt32[1,1]]; sizehint = 1024)
-const bigprimetable = GrowingList([GrowingList([big(2)]; sizehint = 512),
-                                    GrowingList([big(3)]; sizehint = 256)];
-                                    sizehint = 256)
+const primetable = GrowingList([2, 3]; sizehint = 1024)
+const factortable = GrowingList([UInt8[], UInt8[1], UInt8[0,1]]; sizehint = 4096)
+const factorialtable = GrowingList([UInt32[], UInt32[1], UInt32[1,1]]; sizehint = 4096)
+const bigprimetable = GrowingList([GrowingList([big(2)]; sizehint = 2048),
+                                    GrowingList([big(3)]; sizehint = 1024)];
+                                    sizehint = 1024)
 const bigone = big(1)
 
 # Make a prime iterator
@@ -23,8 +21,8 @@ Base.eltype(::PrimeIterator) = Int
 # Get the `n`th prime; store all primes up to the `n`th if not yet available
 function prime(n::Int)
     k = min(length(primetable), length(bigprimetable))
-    p = primetable[k]
     while k < n
+        @inbounds p = primetable[k]
         p = p + 2
         while !isprime(p)
             p += 2
@@ -32,12 +30,14 @@ function prime(n::Int)
         k += 1
         # these lines do not get but set new elements; provided no other task did so earlier
         get!(primetable, k, p)
-        get!(bigprimetable, k, GrowingList([big(p)]; sizehint = 256))
+        bp = big(p)
+        bpf = GrowingList{BigInt}((big(p),); sizehint = 4)
+        get!(bigprimetable, k, bpf)
         k = min(length(primetable), length(bigprimetable))
          # other threads might have inserted additional entries,
          # make sure they are finished with both primetable and bigprimetable
     end
-    return primetable[n]
+    @inbounds return primetable[n]
 end
 
 Base.iterate(::PrimeIterator, n = 1) = prime(n), n+1
@@ -46,13 +46,14 @@ Base.iterate(::PrimeIterator, n = 1) = prime(n), n+1
 function bigprime(n::Integer, e::Integer=1)
     e == 0 && return bigone
     p = prime(n) # triggers computation of prime(n) if necessary
-    powerlist = bigprimetable[n]
+    @inbounds powerlist = bigprimetable[n]
     l = length(powerlist)
     @inbounds while l < e
         # compute next prime power as approximate square of existing results
         l += 1
         k = l>>1
-        get!(powerlist, l, powerlist[k]*powerlist[l-k])
+        newpower = powerlist[k]*powerlist[l-k]
+        get!(powerlist, l, newpower)
         l = length(powerlist) # other threads might have inserted more powers
     end
     @inbounds return powerlist[e]
@@ -85,8 +86,7 @@ function primefactor(n::Integer)
     m = length(factortable)
     while m < abs(n)
         m += 1
-        powers = UInt8[]
-        # should be sufficient for all integers up to 2^255
+        powers = UInt8[] # should be sufficient for all integers up to 2^255
         a = m
         for p in primes()
             f = 0
@@ -113,9 +113,12 @@ function primefactorial(n::Integer)
         prevfactorial = factorialtable[m]
         m += 1
         f = primefactor(m).powers
-        powers = copy(prevfactorial)
-        if length(f) > length(powers) # can at most be 1 larger
-            push!(powers, 0)
+        if length(f) > length(prevfactorial) # can at most be 1 larger
+            powers = similar(prevfactorial, length(f))
+            powers[1:end-1] = prevfactorial
+            powers[end] = 0
+        else
+            powers = copy(prevfactorial)
         end
         for k = 1:length(f)
             powers[k] += f[k]
@@ -367,10 +370,17 @@ function sumlist!(list::Vector{<:PrimeFactorization}, ind = 1:length(list))
     for k in ind
         divexact!(list[k], g)
     end
-    s = big(0)
+    L = length(ind)
     i = big(1)
-    for p in list
-        MPZ.add!(s, _convert!(i, p))
+    if L > 32
+        l = L >> 1
+        s = sumlist!(list, first(ind).+(0:l-1))
+        s = MPZ.add!(s, sumlist!(list, first(ind).+(l:L-1)))
+    else # do sum, add to s
+        s = big(0)
+        for k in ind
+            MPZ.add!(s, _convert!(i, list[k]))
+        end
     end
     return MPZ.mul!(s, _convert!(i, g))
 end

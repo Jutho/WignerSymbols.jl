@@ -56,8 +56,8 @@ end
         for k = 1:div(8,N)
             j2 = convert(BigFloat, rand(largejlist))
             j3 = convert(BigFloat, rand(largejlist))
-            m2 = convert(BigFloat, rand(-j2:j2))
-            m3 = convert(BigFloat, rand(-j3:j3))
+            m2 = convert(BigFloat, rand(0:j2))
+            m3 = convert(BigFloat, rand(-j3:0))
 
             for j in max(abs(j2-j3),abs(m2+m3))+1:(j2+j3)-1
                 X = j*sqrt(((j+1)^2-(j2-j3)^2)*((j2+j3+1)^2-(j+1)^2)*((j+1)^2-(m2+m3)^2))

@@ -8,6 +8,38 @@
 Compute Wigner's 3j and 6j symbols, and related quantities such as Clebsch-Gordan
 coefficients and Racah's symbols.
 
+## What's new in v2
+
+WignerSymbols.jl was updated to version 2.0 on June 16th, 2021. This is the first major
+update in several years. The most important change is that WignerSymbols.jl is now
+completely thread safe, i.e. you can request Wigner symbols from different threads
+simultaneously. The computation of the Wigner symbols is not in itself multithreaded (this
+may be added in the future).
+
+WignerSymbols.jl does no longer store the Wigner 3j and 6j symbols in a `Dict` cache, but
+rather in an `LRU` cache from [LRUCache.jl](https://github.com/JuliaCollections/
+LRUCache.jl). Hence, it no longer stores all Wigner symbols ever computed, but only the
+most recent ones. By default, it stores the $10^6$ most recent ones, which is probably
+equivalent to storing all of them in most use cases. This number can be changed via the
+interface
+```julia
+WignerSymbols.set_buffer3j_size(; maxsize = ...)
+WignerSymbols.set_buffer6j_size(; maxsize = ...)
+```
+Thus note that there are separate cache buffers for 3j symbols (or Clebsch-Gordan
+coefficients, or Racah V coefficients) and 6j symbols (or Racah W coefficients).
+
+For the underlying prime factorizations on which WignerSymbols.jl is based (which are also
+cached), a custom type `GrowingList` was implemented that can be expanded indefinitely in a
+thread-safe way. While there is some overhead in making the caches thread safe, these
+should mostly be compensated (except for maybe in compilation time) by overall improvements
+throughout the library, being more careful about unnecessary computations and about memory
+consumption for temporary variables. These changes also rely on `Base.unsafe_rational`
+which is only available since Julia 1.5, which is now required and thus provides another
+good reason for increasing the major version of WignerSymbols.jl. In tests for generating
+all Wigner symbols up to a maximal angular momentum value, WignerSymbols version 2
+outperforms version 1.x with about ten to tweny percent.
+
 ## Installation
 Install with the new package manager via `]add WignerSymbols` or
 ```julia
@@ -44,9 +76,10 @@ momenta quantum numbers).
 
 In particular, 3j and 6j symbols are computed exactly, in the format `√(r) * s` where `r`
 and `s` are exactly computed as `Rational{BigInt}`, using an intermediate representation
-based on prime number factorization. As a consequence thereof, all of the above functions
-can be called requesting `BigFloat` precision for the result. There is currently no
-convenient syntax for obtaining `r` and `s` directly (see TODO).
+based on prime number factorization. This exact representation is captured by the
+`RationalRoot` type. For further calculations, these values probably need to be converted
+to a floating point type. Because of this exact representation, all of the above functions
+can be called requesting `BigFloat` precision for the result.
 
 Most intermediate calculations (prime factorizations of numbers and their factorials,
 conversion between prime powers and `BigInt`s) are cached to improve the efficiency, but
@@ -62,7 +95,3 @@ for caching the computed 3j and 6j symbols.
 *   Wigner 9-j symbols, as explained in [1] and based on
 
     [3] [L. Wei, New formula for 9-j symbols and their direct calculation, Computers in Physics, 12 (1998), 632–634.](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.481.5946&rep=rep1&type=pdf)
-
-*   ~~Convenient syntax to get the exact results in the `√(r) * s` format, but in such a way
-    that it can be used by the Julia type system and can be converted afterwards.~~
-    Solved in v1.1 by the package RationalRoots.jl, the implementation of which was initiated by @w-vdh in [PR #9](https://github.com/Jutho/WignerSymbols.jl/pull/9).

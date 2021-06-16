@@ -19,9 +19,9 @@ may be added in the future).
 WignerSymbols.jl does no longer store the Wigner 3j and 6j symbols in a `Dict` cache, but
 rather in an `LRU` cache from [LRUCache.jl](https://github.com/JuliaCollections/
 LRUCache.jl). Hence, it no longer stores all Wigner symbols ever computed, but only the
-most recent ones. By default, it stores the $10^6$ most recent ones, which is probably
-equivalent to storing all of them in most use cases. This number can be changed via the
-interface
+most recent ones, and it that sense this is a (softly) breaking release. By default, it
+stores the $10^6$ most recent ones, which is probably equivalent to storing all of them in
+most use cases. This number can be changed via the interface
 ```julia
 WignerSymbols.set_buffer3j_size(; maxsize = ...)
 WignerSymbols.set_buffer6j_size(; maxsize = ...)
